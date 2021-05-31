@@ -1,0 +1,2 @@
+function synSam = genSynSam()
+end
