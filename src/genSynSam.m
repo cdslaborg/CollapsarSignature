@@ -1,2 +1,0 @@
-function synSam = genSynSam()
-end
