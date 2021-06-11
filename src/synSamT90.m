@@ -9,14 +9,19 @@ addpath(genpath("../../../libmatlab"),"-begin");
 fontSize = 14;
 lineWidth = 1.5;
 figureColor = "white";
-secondaryColor = "magenta";
+defaultColor = [0, 0.4470, 0.7410];
+secondaryColor = '#FFA500'; %orange
+sgrbColor = "blue";
+lgrbColor = "red";
+allColor = "magenta";
+confidenceColor = [0.5, 0.5, 0.5];
 
 % Simulation Options
 grbType = "all"; % choose between "lgrb", "sgrb", and "all"
-freshRunEnabled = true; % this must be set to 'true' for first ever simulation. Thereafter, it can be set to 'false' to save time.
+freshRunEnabled = false; % this must be set to 'true' for first ever simulation. Thereafter, it can be set to 'false' to save time.
 skip.lgrb = 28; % reduce synthetic lgrb dataset of 200,000 to ~1400, equivalent to BATSE; 'freshRunEnabled' must be 'true'
 skip.sgrb = 10; % reduce synthetic sgrb dataset of 18,848 to ~600, equivalent to BATSE; 'freshRunEnabled' must be 'true'
-numBins = 40; % number of bins to bin data in; 'freshRunEnabled' must be 'true'
+numBins = 52; % number of bins to bin data in; 'freshRunEnabled' must be 'true'
 numRuns = 10000; % number of detector simulation runs; 'freshRunEnabled' must be 'true'
 matFileName = "synSamT90.mat";
 
@@ -37,26 +42,25 @@ if freshRunEnabled
     synSam.lgrb.detProb = lgrb.data(:,icol.lgrb.detProb);
     synSam.sgrb.T90 = sgrb.data(:,icol.sgrb.T90);
     synSam.sgrb.detProb = sgrb.data(:,icol.sgrb.detProb);
-    synSam.lgrb.binEdges = exp(linspace(log(min(synSam.lgrb.T90)),log(max(synSam.lgrb.T90)),numBins+1));
-    synSam.lgrb.binCenters = zeros(1,numBins);
-    synSam.sgrb.binEdges = exp(linspace(log(min(synSam.sgrb.T90)),log(max(synSam.sgrb.T90)),numBins+1));
-    synSam.sgrb.binCenters = zeros(1,numBins);
-    synSam.all.binEdges = exp(linspace(log(min(synSam.sgrb.T90)),log(max(synSam.lgrb.T90)),numBins+1));
-    synSam.all.binCenters = zeros(1,numBins);
-    for i = 1:numBins
-        synSam.lgrb.binCenters(i) = 0.5*(synSam.lgrb.binEdges(i) + synSam.lgrb.binEdges(i+1));
-        synSam.sgrb.binCenters(i) = 0.5*(synSam.sgrb.binEdges(i) + synSam.sgrb.binEdges(i+1));
-        synSam.all.binCenters(i) = 0.5*(synSam.all.binEdges(i) + synSam.all.binEdges(i+1));
-    end
+    synSam.all.binEdges = getBinEdges([synSam.sgrb.T90;synSam.lgrb.T90],numBins);
+    synSam.all.binCenters = getBinCenters(synSam.all.binEdges);
+
     synSam.lgrb.whole.ndata = length(synSam.lgrb.T90);
-    synSam.lgrb.whole.countsVec = histcounts(synSam.lgrb.T90,synSam.lgrb.binEdges);
+    synSam.lgrb.whole.countsVec = histcounts(synSam.lgrb.T90,synSam.all.binEdges);
+    [synSam.lgrb.whole.countsVec, synSam.lgrb.whole.binCenters, synSam.lgrb.whole.binEdges] = trimZeros(synSam.lgrb.whole.countsVec, synSam.all.binEdges);
     synSam.sgrb.whole.ndata = length(synSam.sgrb.T90);
-    synSam.sgrb.whole.countsVec = histcounts(synSam.sgrb.T90,synSam.sgrb.binEdges);
+    synSam.sgrb.whole.countsVec = histcounts(synSam.sgrb.T90,synSam.all.binEdges);
+    [synSam.sgrb.whole.countsVec, synSam.sgrb.whole.binCenters, synSam.sgrb.whole.binEdges] = trimZeros(synSam.sgrb.whole.countsVec, synSam.all.binEdges);
     synSam.all.whole.ndata = length([synSam.lgrb.T90;synSam.sgrb.T90]);
     synSam.all.whole.countsVec = histcounts([synSam.lgrb.T90;synSam.sgrb.T90],synSam.all.binEdges);
+    
     % Normalize the ratio of LGRBs/SGRBs to the observed ratio for BATSE in the combined, pre-detected dataset. Does not affect any other computations.
     synSam.all.whole.normalized.ndata = length([synSam.lgrb.T90(1:round(length(synSam.sgrb.T90)*1366/600));synSam.sgrb.T90]);
     synSam.all.whole.normalized.countsVec = histcounts([synSam.lgrb.T90(1:round(length(synSam.sgrb.T90)*1366/600));synSam.sgrb.T90],synSam.all.binEdges);
+    [synSam.all.whole.normalized.countsVec, synSam.all.whole.normalized.binCenters, synSam.all.whole.normalized.binEdges] ...
+        = trimZeros(synSam.all.whole.normalized.countsVec, synSam.all.binEdges);
+    
+    % If detection probability is above a uniformly generated random number, observe event. Repeat 'numRuns' times.
     for i = 1:numRuns
         Mask.lgrb = lgrb.data(:,icol.lgrb.detProb) > unifrnd(0,1,length(lgrb.data),1);
         Mask.sgrb = sgrb.data(:,icol.sgrb.detProb) > unifrnd(0,1,length(sgrb.data),1);
@@ -65,9 +69,9 @@ if freshRunEnabled
         T90.lgrb = T90.lgrb(1:skip.lgrb:end);   % reduce the detected dataset
         T90.sgrb = T90.sgrb(1:skip.sgrb:end);   % reduce the detected dataset
         synSam.lgrb.reducedVec(i).ndata = length(T90.lgrb);
-        synSam.lgrb.reducedVec(i).countsVec = histcounts(T90.lgrb,synSam.lgrb.binEdges);
+        synSam.lgrb.reducedVec(i).countsVec = histcounts(T90.lgrb,synSam.all.binEdges);
         synSam.sgrb.reducedVec(i).ndata = length(T90.sgrb);
-        synSam.sgrb.reducedVec(i).countsVec = histcounts(T90.sgrb,synSam.sgrb.binEdges);
+        synSam.sgrb.reducedVec(i).countsVec = histcounts(T90.sgrb,synSam.all.binEdges);
         synSam.all.reducedVec(i).ndata = length([T90.lgrb;T90.sgrb]);
         synSam.all.reducedVec(i).countsVec = histcounts([T90.lgrb;T90.sgrb],synSam.all.binEdges);
     end
@@ -94,6 +98,26 @@ if freshRunEnabled
     synSam.sgrb.reduced.mean.ndata = round(mean([synSam.sgrb.reducedVec(:).ndata]));
     synSam.all.reduced.mean.ndata = round(mean([synSam.all.reducedVec(:).ndata]));
     
+    % Trim zeros off 
+    [synSam.lgrb.reduced.percentile95.countsVec, synSam.lgrb.reduced.percentile95.binCenters, synSam.lgrb.reduced.percentile95.binEdges] ...
+        = trimZeros(synSam.lgrb.reduced.percentile95.countsVec, synSam.all.binEdges);
+    [synSam.lgrb.reduced.percentile50.countsVec, synSam.lgrb.reduced.percentile50.binCenters, synSam.lgrb.reduced.percentile50.binEdges] ...
+        = trimZeros(synSam.lgrb.reduced.percentile50.countsVec, synSam.all.binEdges);
+    [synSam.lgrb.reduced.percentile05.countsVec, synSam.lgrb.reduced.percentile05.binCenters, synSam.lgrb.reduced.percentile05.binEdges] ...
+        = trimZeros(synSam.lgrb.reduced.percentile05.countsVec, synSam.all.binEdges);
+    [synSam.sgrb.reduced.percentile95.countsVec, synSam.sgrb.reduced.percentile95.binCenters, synSam.sgrb.reduced.percentile95.binEdges] ...
+        = trimZeros(synSam.sgrb.reduced.percentile95.countsVec, synSam.all.binEdges);
+    [synSam.sgrb.reduced.percentile50.countsVec, synSam.sgrb.reduced.percentile50.binCenters, synSam.sgrb.reduced.percentile50.binEdges] ...
+        = trimZeros(synSam.sgrb.reduced.percentile50.countsVec, synSam.all.binEdges);
+    [synSam.sgrb.reduced.percentile05.countsVec, synSam.sgrb.reduced.percentile05.binCenters, synSam.sgrb.reduced.percentile05.binEdges] ...
+        = trimZeros(synSam.sgrb.reduced.percentile05.countsVec, synSam.all.binEdges);
+    [synSam.all.reduced.percentile95.countsVec, synSam.all.reduced.percentile95.binCenters, synSam.all.reduced.percentile95.binEdges] ...
+        = trimZeros(synSam.all.reduced.percentile95.countsVec, synSam.all.binEdges);
+    [synSam.all.reduced.percentile50.countsVec, synSam.all.reduced.percentile50.binCenters, synSam.all.reduced.percentile50.binEdges] ...
+        = trimZeros(synSam.all.reduced.percentile50.countsVec, synSam.all.binEdges);
+    [synSam.all.reduced.percentile05.countsVec, synSam.all.reduced.percentile05.binCenters, synSam.all.reduced.percentile05.binEdges] ...
+        = trimZeros(synSam.all.reduced.percentile05.countsVec, synSam.all.binEdges);
+    
     synSam.output.path = "../out"; if ~isfolder(synSam.output.path); mkdir(synSam.output.path); end
     save(synSam.output.path + "/" + matFileName,"synSam");
 
@@ -107,156 +131,146 @@ end
 % Figure 1: Histogram for whole dataset
 figure("color", figureColor); hold on; box on;
     if strcmpi(grbType,"lgrb")
-        histogram('BinEdges', synSam.lgrb.binEdges, 'BinCounts', synSam.lgrb.whole.countsVec);
-        title("Histogram for whole LGRB dataset n = " + synSam.lgrb.whole.ndata, "fontsize", fontSize);
+        histogram('BinEdges', synSam.lgrb.whole.binEdges, 'BinCounts', synSam.lgrb.whole.countsVec);
+        title("Histogram for whole LGRB dataset n = " + synSam.lgrb.whole.ndata + " in " + length(synSam.lgrb.whole.countsVec) + " bins");
     elseif strcmpi(grbType,"sgrb")
-        histogram('BinEdges', synSam.sgrb.binEdges, 'BinCounts', synSam.sgrb.whole.countsVec);
-        title("Histogram for whole SGRB dataset n = " + synSam.sgrb.whole.ndata, "fontsize", fontSize);
-        ylim([1,10^4]);
+        histogram('BinEdges',synSam.sgrb.whole.binEdges, 'BinCounts', synSam.sgrb.whole.countsVec);
+        title("Histogram for whole SGRB dataset n = " + synSam.sgrb.whole.ndata + " in " + length(synSam.sgrb.whole.countsVec) + " bins");
     elseif strcmpi(grbType,"all")
         histogram('BinEdges', synSam.all.binEdges, 'BinCounts', synSam.all.whole.countsVec);
-        histogram('BinEdges', synSam.all.binEdges, 'BinCounts', synSam.all.whole.normalized.countsVec, 'FaceColor', secondaryColor);
+        histogram('BinEdges', synSam.all.whole.normalized.binEdges, 'BinCounts', synSam.all.whole.normalized.countsVec, 'FaceColor', secondaryColor);
         %title("Histogram for whole GRB dataset n = " + synSam.all.whole.ndata, "fontsize", fontSize);
-        title("Histogram for whole GRB dataset", "fontsize", fontSize);
+        title("Histogram for whole GRB dataset in " + length(synSam.all.whole.countsVec) + " bins");
         legend(["Whole dataset, n = " + synSam.all.whole.ndata, "LGRB/SGRB ratio normalized to BATSE, n = " + synSam.all.whole.normalized.ndata] ...
                 , "interpreter", "tex", "location", "northwest");
         ylim([1,10^6]);
     end
-    xlabel("T_{90}", "interpreter", "tex", "fontsize", fontSize);
-    ylabel("dN/dlog(T_{90})", "interpreter", "tex", "fontsize", fontSize);
-    set(gca, 'xscale', 'log', 'yscale', 'log');
+    set(gca, 'xscale', 'log', 'yscale', 'log', 'fontsize', fontSize-3);
+    xlabel("T_{90} [s]", "interpreter", "tex", "fontsize", fontSize);
+    ylabel("dN / dlog(T_{90})", "interpreter", "tex", "fontsize", fontSize);
 hold off;
 
-lgrb.dNdT = synSam.lgrb.whole.countsVec ./ synSam.lgrb.binCenters;
-sgrb.dNdT = synSam.sgrb.whole.countsVec ./ synSam.sgrb.binCenters;
+lgrb.dNdT = synSam.lgrb.whole.countsVec ./ synSam.lgrb.whole.binCenters;
+sgrb.dNdT = synSam.sgrb.whole.countsVec ./ synSam.sgrb.whole.binCenters;
 all.dNdT = synSam.all.whole.countsVec ./ synSam.all.binCenters;
-all.dNdTnorm = synSam.all.whole.normalized.countsVec ./ synSam.all.binCenters;
+all.dNdTnorm = synSam.all.whole.normalized.countsVec ./ synSam.all.whole.normalized.binCenters;
 
 % Figure 2: Plot dN/dT of whole dataset
 figure("color", figureColor); hold on; box on;
     if strcmpi(grbType,"lgrb")
-        stairs(synSam.lgrb.binEdges(1:end-1), lgrb.dNdT, 'lineWidth', lineWidth);
-        title("Adjusted LGRB dataset of n = " + synSam.lgrb.whole.ndata + " with original binning", "fontsize", fontSize);
+        hist2stairs(lgrb.dNdT, synSam.lgrb.whole.binEdges, defaultColor, lineWidth);
+        title("Adjusted LGRB dataset of n = " + synSam.lgrb.whole.ndata + " in " + length(lgrb.dNdT) + " bins");
     elseif strcmpi(grbType,"sgrb")
-        stairs(synSam.sgrb.binEdges(1:end-1), sgrb.dNdT, 'lineWidth', lineWidth);
-        title("Adjusted SGRB dataset of n = " + synSam.sgrb.whole.ndata + " with original binning", "fontsize", fontSize);
-        ylim([10^-2,10^5]);
+        hist2stairs(sgrb.dNdT, synSam.sgrb.whole.binEdges, defaultColor, lineWidth);
+        title("Adjusted SGRB dataset of n = " + synSam.sgrb.whole.ndata + " in " + length(sgrb.dNdT) + " bins");
+        ylim([10^-2, 10^5]);
     elseif strcmpi(grbType,"all")
-        stairs(synSam.all.binEdges(1:end-1), all.dNdT, 'lineWidth', lineWidth);
-        stairs(synSam.all.binEdges(1:end-1), all.dNdTnorm, 'lineWidth', lineWidth, 'color', secondaryColor);
-        %title("Adjusted GRB dataset of n = " + synSam.all.whole.ndata + " with original binning", "fontsize", fontSize);
-        title("Adjusted GRB dataset with original binning", "fontsize", fontSize);
+        hist2stairs(all.dNdT, synSam.all.binEdges, defaultColor, lineWidth);
+        hist2stairs(all.dNdTnorm, synSam.all.whole.normalized.binEdges, secondaryColor, lineWidth);
+        title("Adjusted GRB dataset with original binning");
         legend(["Whole dataset, n = " + synSam.all.whole.ndata, "LGRB/SGRB ratio normalized to BATSE, n = " + synSam.all.whole.normalized.ndata] ...
                 , "interpreter", "tex", "location", "southwest");
-        ylim([10^-4,10^5]);
+        ylim([10^-4, 10^5]);
     end
-    xlabel("T_{90}", "interpreter", "tex", "fontsize", fontSize);
-    ylabel("dN/dT_{90}", "interpreter", "tex", "fontsize", fontSize);
-    set(gca, 'xscale', 'log', 'yscale', 'log');
+    set(gca, 'xscale', 'log', 'yscale', 'log', 'fontsize', fontSize-3);
+    xlabel("T_{90} [s]", "interpreter", "tex", "fontsize", fontSize);
+    ylabel("dN / dT_{90} [s^{-1}]", "interpreter", "tex", "fontsize", fontSize);
 hold off;
 
-lgrb.dNdT95th = synSam.lgrb.reduced.percentile95.countsVec ./ synSam.lgrb.binCenters;
-lgrb.dNdT05th = synSam.lgrb.reduced.percentile05.countsVec ./ synSam.lgrb.binCenters;
-sgrb.dNdT95th = synSam.sgrb.reduced.percentile95.countsVec ./ synSam.sgrb.binCenters;
-sgrb.dNdT05th = synSam.sgrb.reduced.percentile05.countsVec ./ synSam.sgrb.binCenters;
-all.dNdT50th = synSam.all.reduced.percentile50.countsVec ./ synSam.all.binCenters;
-all.dNdT95th = synSam.all.reduced.percentile95.countsVec ./ synSam.all.binCenters;
-all.dNdT05th = synSam.all.reduced.percentile05.countsVec ./ synSam.all.binCenters;
+lgrb.dNdT95th = synSam.lgrb.reduced.percentile95.countsVec ./ synSam.lgrb.reduced.percentile95.binCenters;
+lgrb.dNdT05th = synSam.lgrb.reduced.percentile05.countsVec ./ synSam.lgrb.reduced.percentile05.binCenters;
+sgrb.dNdT95th = synSam.sgrb.reduced.percentile95.countsVec ./ synSam.sgrb.reduced.percentile95.binCenters;
+sgrb.dNdT05th = synSam.sgrb.reduced.percentile05.countsVec ./ synSam.sgrb.reduced.percentile05.binCenters;
 
-lgrb.zeroIndicies = find(~synSam.lgrb.reduced.percentile50.countsVec);
-synSam.lgrb.reduced.percentile50.countsVecTrimmed = synSam.lgrb.reduced.percentile50.countsVec;
-synSam.lgrb.reduced.percentile50.countsVecTrimmed(lgrb.zeroIndicies) = [];
-synSam.lgrb.binCentersTrimmed = synSam.lgrb.binCenters;
-synSam.lgrb.binCentersTrimmed(lgrb.zeroIndicies) = [];
-synSam.lgrb.binEdgesTrimmed = synSam.lgrb.binEdges;
-synSam.lgrb.binEdgesTrimmed(lgrb.zeroIndicies) = [];
 lgrb.fo = fitoptions('Method','NonlinearLeastSquares','StartPoint',[130,3,1]);
 lgrb.ft = fittype('a*exp(-((log(x)-b)/c)^2)', 'options', lgrb.fo);
-lgrb.f = fit(synSam.lgrb.binCentersTrimmed.', synSam.lgrb.reduced.percentile50.countsVecTrimmed.', lgrb.ft);
-lgrb.dNdT50th = synSam.lgrb.reduced.percentile50.countsVecTrimmed ./ synSam.lgrb.binCentersTrimmed;
-lgrb.fdNdT = lgrb.f(synSam.lgrb.binCentersTrimmed).' ./ synSam.lgrb.binCentersTrimmed;
+lgrb.f = fit(synSam.lgrb.reduced.percentile50.binCenters.', synSam.lgrb.reduced.percentile50.countsVec.', lgrb.ft);
+lgrb.dNdT50th = synSam.lgrb.reduced.percentile50.countsVec ./ synSam.lgrb.reduced.percentile50.binCenters;
+lgrb.fdNdT = lgrb.f(synSam.lgrb.reduced.percentile50.binCenters).' ./ synSam.lgrb.reduced.percentile50.binCenters;
 
-sgrb.zeroIndicies = find(~synSam.sgrb.reduced.percentile50.countsVec);
-synSam.sgrb.reduced.percentile50.countsVecTrimmed = synSam.sgrb.reduced.percentile50.countsVec;
-synSam.sgrb.reduced.percentile50.countsVecTrimmed(sgrb.zeroIndicies) = [];
-synSam.sgrb.binCentersTrimmed = synSam.sgrb.binCenters;
-synSam.sgrb.binCentersTrimmed(sgrb.zeroIndicies) = [];
-synSam.sgrb.binEdgesTrimmed = synSam.sgrb.binEdges;
-synSam.sgrb.binEdgesTrimmed(sgrb.zeroIndicies) = [];
 sgrb.fo = fitoptions('Method','NonlinearLeastSquares','StartPoint',[1,1,1]);
 sgrb.ft = fittype('a*exp(-((log(x)-b)/c)^2)', 'options', sgrb.fo);
-sgrb.f = fit(synSam.sgrb.binCentersTrimmed.', synSam.sgrb.reduced.percentile50.countsVecTrimmed.', sgrb.ft);
-sgrb.dNdT50th = synSam.sgrb.reduced.percentile50.countsVecTrimmed ./ synSam.sgrb.binCentersTrimmed;
-sgrb.fdNdT = sgrb.f(synSam.sgrb.binCentersTrimmed).' ./ synSam.sgrb.binCentersTrimmed;
+sgrb.f = fit(synSam.sgrb.reduced.percentile50.binCenters.', synSam.sgrb.reduced.percentile50.countsVec.', sgrb.ft);
+sgrb.dNdT50th = synSam.sgrb.reduced.percentile50.countsVec ./ synSam.sgrb.reduced.percentile50.binCenters;
+sgrb.fdNdT = sgrb.f(synSam.sgrb.reduced.percentile50.binCenters).' ./ synSam.sgrb.reduced.percentile50.binCenters;
+
+all.fdNdT = lgrb.f(synSam.all.reduced.percentile50.binCenters).' ./ synSam.all.reduced.percentile50.binCenters ...
+          + sgrb.f(synSam.all.reduced.percentile50.binCenters).' ./ synSam.all.reduced.percentile50.binCenters;
+
+%xq = exp(linspace(log(synSam.sgrb.binCentersTrimmed(1)),log(synSam.lgrb.binCentersTrimmed(end)),numBins+1));
+%vq = interp1(synSam.sgrb.binCenters, sgrb.dNdT95th, xq, 'spline');
 
 % Figure 3: Plot dN/dT of reduced dataset
 figure("color", figureColor); hold on; box on;
     if strcmpi(grbType,"lgrb")
-        stairs(synSam.lgrb.binEdges(1:end-1), lgrb.dNdT95th, 'color', 'red');
-        stairs(synSam.lgrb.binEdges(1:end-1), lgrb.dNdT05th, 'color', 'red');
-        stairs(synSam.lgrb.binEdges(1:end-1), lgrb.dNdT50th, 'color', [0, 0.4470, 0.7410], 'lineWidth', lineWidth);
-        title("Adjusted LGRB dataset of n = " + synSam.lgrb.reduced.mean.ndata + " with original binning", "fontsize", fontSize);
-        legend(["", "90% Confidence Interval", "Mean of " + numRuns + " runs"], "interpreter", "tex", "location", "southwest", "fontSize", fontSize);
+        plot(synSam.lgrb.reduced.percentile95.binCenters, lgrb.dNdT95th, ':', 'color', confidenceColor, 'lineWidth', lineWidth);
+        plot(synSam.lgrb.reduced.percentile05.binCenters, lgrb.dNdT05th, ':', 'color', confidenceColor, 'lineWidth', lineWidth);
+        hist2stairs(lgrb.dNdT50th, synSam.lgrb.reduced.percentile50.binEdges, lgrbColor, lineWidth);
+        title("Adjusted LGRB dataset of n = " + synSam.lgrb.reduced.mean.ndata + " in " + length(lgrb.dNdT50th) + " bins");
+        legend(["", "90% confidence Interval", "Mean of " + numRuns + " runs"], "interpreter", "tex", "location", "southwest", "fontSize", fontSize);
     elseif strcmpi(grbType,"sgrb")
-        stairs(synSam.sgrb.binEdges(1:end-1), sgrb.dNdT95th, 'color', 'red');
-        stairs(synSam.sgrb.binEdges(1:end-1), sgrb.dNdT05th, 'color', 'red');
-        stairs(synSam.sgrb.binEdges(1:end-1), sgrb.dNdT50th, 'color', [0, 0.4470, 0.7410], 'lineWidth', lineWidth);
-        title("Adjusted SGRB dataset of n = " + synSam.sgrb.reduced.mean.ndata + " with original binning", "fontsize", fontSize);
-        legend(["", "90% Confidence Interval", "Mean of " + numRuns + " runs"], "interpreter", "tex", "location", "southwest", "fontSize", fontSize);
+        plot(synSam.sgrb.reduced.percentile95.binCenters, sgrb.dNdT95th, ':', 'color', confidenceColor, 'lineWidth', lineWidth);
+        plot(synSam.sgrb.reduced.percentile05.binCenters, sgrb.dNdT05th, ':', 'color', confidenceColor, 'lineWidth', lineWidth);
+        hist2stairs(sgrb.dNdT50th, synSam.sgrb.reduced.percentile50.binEdges, sgrbColor, lineWidth);
+        title("Adjusted SGRB dataset of n = " + synSam.sgrb.reduced.mean.ndata + " in " + length(sgrb.dNdT50th) + " bins");
+        legend(["", "90% confidence Interval", "Mean of " + numRuns + " runs"], "interpreter", "tex", "location", "southwest", "fontSize", fontSize);
     elseif strcmpi(grbType,"all")
-        %stairs(synSam.all.binEdges(1:end-1), all.dNdT95th, 'color', 'red');
-        %stairs(synSam.all.binEdges(1:end-1), all.dNdT05th, 'color', 'red');
-        %stairs(synSam.all.binEdges(1:end-1), all.dNdT50th, 'color', [0.5, 0.5, 0.5], 'lineWidth', lineWidth-0.5);
-        plot(synSam.sgrb.binCentersTrimmed, sgrb.fdNdT, synSam.lgrb.binCentersTrimmed, lgrb.fdNdT, 'color', [0.5, 0.5, 0.5], 'lineWidth', lineWidth);
-        plot( cat(2, synSam.sgrb.binCentersTrimmed, synSam.lgrb.binCentersTrimmed) ...
-            , cat(2, sgrb.fdNdT, lgrb.fdNdT), 'color', [0.5, 0.5, 0.5], 'lineWidth', lineWidth);
-        plot(synSam.lgrb.binCenters, lgrb.dNdT95th, ':', 'color', 'green', 'lineWidth', lineWidth);
-        plot(synSam.lgrb.binCenters, lgrb.dNdT05th, ':', 'color', 'green', 'lineWidth', lineWidth);
-        stairs(synSam.lgrb.binEdgesTrimmed(1:end-1), lgrb.dNdT50th, 'color', 'red', 'lineWidth', lineWidth-0.5);
-        plot(synSam.lgrb.binCentersTrimmed, lgrb.fdNdT, 'color', 'red', 'lineWidth', lineWidth);
-        plot(synSam.sgrb.binCenters, sgrb.dNdT95th, ':', 'color', 'green', 'lineWidth', lineWidth);
-        plot(synSam.sgrb.binCenters, sgrb.dNdT05th, ':', 'color', 'green', 'lineWidth', lineWidth);
-        stairs(synSam.sgrb.binEdgesTrimmed(1:end-1), sgrb.dNdT50th, 'color', 'blue', 'lineWidth', lineWidth-0.5);
-        plot(synSam.sgrb.binCentersTrimmed, sgrb.fdNdT, 'color', 'blue', 'lineWidth', lineWidth);
-        title("Adjusted GRB dataset of n = " + synSam.all.reduced.mean.ndata + " with original binning", "fontsize", fontSize);
+        plot(synSam.all.reduced.percentile50.binCenters, all.fdNdT, 'color', 'magenta', 'lineWidth', lineWidth+1);
+        hist2stairs(lgrb.dNdT50th, synSam.lgrb.reduced.percentile50.binEdges, lgrbColor, lineWidth-0.5);
+        plot(synSam.lgrb.reduced.percentile50.binCenters, lgrb.fdNdT, 'color', lgrbColor, 'lineWidth', lineWidth);
+        hist2stairs(sgrb.dNdT50th, synSam.sgrb.reduced.percentile50.binEdges, sgrbColor, lineWidth-0.5);
+        plot(synSam.sgrb.reduced.percentile50.binCenters, sgrb.fdNdT, 'color', sgrbColor, 'lineWidth', lineWidth);
+        plot(synSam.lgrb.reduced.percentile95.binCenters, lgrb.dNdT95th, ':', 'color', confidenceColor, 'lineWidth', lineWidth);
+        plot(synSam.lgrb.reduced.percentile05.binCenters, lgrb.dNdT05th, ':', 'color', confidenceColor, 'lineWidth', lineWidth);
+        plot(synSam.sgrb.reduced.percentile95.binCenters, sgrb.dNdT95th, ':', 'color', confidenceColor, 'lineWidth', lineWidth);
+        plot(synSam.sgrb.reduced.percentile05.binCenters, sgrb.dNdT05th, ':', 'color', confidenceColor, 'lineWidth', lineWidth);
+        title("Adjusted GRB dataset of n = " + synSam.all.reduced.mean.ndata + " in " + length(all.fdNdT) + " bins");
         xlim([10^-2, 2*10^3]);
+        legend([synSam.all.reduced.mean.ndata + " synthetic GRBs", "", synSam.lgrb.reduced.mean.ndata + " synthetic LGRBs" ...
+               , "", synSam.sgrb.reduced.mean.ndata + " synthetic SGRBs", "90% confidence Interval"], "interpreter", "tex" ...
+               , "location", "southwest", "fontSize", fontSize-2);
+        legend('boxoff');
+        ylim([10^-3,10^3]);
     end
-    xlabel("T_{90}", "interpreter", "tex", "fontsize", fontSize);
-    ylabel("dN/dT_{90}", "interpreter", "tex", "fontsize", fontSize);
-    set(gca, 'xscale', 'log', 'yscale', 'log');
+    set(gca, 'xscale', 'log', 'yscale', 'log', 'fontsize', fontSize-3);
+    xlabel("T_{90} [s]", "interpreter", "tex", "fontsize", fontSize);
+    ylabel("dN / dT_{90} [s^{-1}]", "interpreter", "tex", "fontsize", fontSize);
 hold off;
 
 % Figure 4: Combine adjacent bins with fewer than 5 events and plot dN/dT of reduced dataset
 figure("color", figureColor); hold on; box on;
     if strcmpi(grbType,"lgrb")
-        binReductionStairPlot(synSam.lgrb.reduced.percentile95.countsVec, synSam.lgrb.binEdges, 'red');
-        binReductionStairPlot(synSam.lgrb.reduced.percentile05.countsVec, synSam.lgrb.binEdges, 'red');
-        nbins = binReductionStairPlot(synSam.lgrb.reduced.percentile50.countsVec, synSam.lgrb.binEdges, [0, 0.4470, 0.7410], lineWidth);
-        title("Adjusted LGRB dataset of n = " + synSam.lgrb.reduced.mean.ndata + " in " + nbins + " bins", "fontsize", fontSize);
+        plot(synSam.lgrb.reduced.percentile50.binCenters, lgrb.fdNdT, 'color', lgrbColor, 'lineWidth', lineWidth+1);
+        nbins = binMergeStairPlot(synSam.lgrb.reduced.percentile50.countsVec, synSam.lgrb.reduced.percentile50.binEdges, defaultColor, lineWidth);
+        title("Adjusted LGRB dataset of n = " + synSam.lgrb.reduced.mean.ndata + " in " + nbins + " bins");
+        legend(["BATSE " + synSam.lgrb.reduced.mean.ndata + " LGRB T_{90} dist.", "Adjacent bins with <5 events merged"] ...
+               , "interpreter", "tex", "location", "southwest", "fontSize", fontSize-2);
     elseif strcmpi(grbType,"sgrb")
-        binReductionStairPlot(synSam.sgrb.reduced.percentile95.countsVec, synSam.sgrb.binEdges, 'red');
-        binReductionStairPlot(synSam.sgrb.reduced.percentile05.countsVec, synSam.sgrb.binEdges, 'red');
-        nbins = binReductionStairPlot(synSam.sgrb.reduced.percentile50.countsVec, synSam.sgrb.binEdges, [0, 0.4470, 0.7410], lineWidth);
-        title("Adjusted SGRB dataset of n = " + synSam.sgrb.reduced.mean.ndata + " in " + nbins + " bins", "fontsize", fontSize);
+        plot(synSam.sgrb.reduced.percentile50.binCenters, sgrb.fdNdT, 'color', sgrbColor, 'lineWidth', lineWidth+1);
+        nbins = binMergeStairPlot(synSam.sgrb.reduced.percentile50.countsVec, synSam.sgrb.reduced.percentile50.binEdges, defaultColor, lineWidth);
+        title("Adjusted SGRB dataset of n = " + synSam.sgrb.reduced.mean.ndata + " in " + nbins + " bins");
+        legend(["BATSE " + synSam.sgrb.reduced.mean.ndata + " SGRB T_{90} dist.", "Adjacent bins with <5 events merged"] ...
+               , "interpreter", "tex", "location", "southwest", "fontSize", fontSize-2);
     elseif strcmpi(grbType,"all")
-        binReductionStairPlot(synSam.all.reduced.percentile95.countsVec, synSam.all.binEdges, 'red');
-        binReductionStairPlot(synSam.all.reduced.percentile05.countsVec, synSam.all.binEdges, 'red');
-        nbins = binReductionStairPlot(synSam.all.reduced.percentile50.countsVec, synSam.all.binEdges, [0, 0.4470, 0.7410], lineWidth);
-        title("Adjusted GRB dataset of n = " + synSam.all.reduced.mean.ndata + " in " + nbins + " bins", "fontsize", fontSize);
+        plot(synSam.all.reduced.percentile50.binCenters, all.fdNdT, 'color', allColor, 'lineWidth', lineWidth+1);
+        nbins = binMergeStairPlot(synSam.all.reduced.percentile50.countsVec, synSam.all.reduced.percentile50.binEdges, defaultColor, lineWidth);
+        title("Adjusted GRB dataset of n = " + synSam.all.reduced.mean.ndata + " in " + nbins + " bins");
+        legend([synSam.all.reduced.mean.ndata + " synthetic GRBs", "Adjacent bins with <5 events merged"] ...
+               , "interpreter", "tex", "location", "southwest", "fontSize", fontSize-2);
+        xlim([10^-2,2*10^3]);
     end
-    xlabel("T_{90}", "interpreter", "tex", "fontsize", fontSize);
-    ylabel("dN/dT_{90}", "interpreter", "tex", "fontsize", fontSize);
-    legend(["", "90% Confidence Interval", "Mean of " + numRuns + " runs"], "interpreter", "tex", "location", "southwest", "fontSize", fontSize);
-    set(gca, 'xscale', 'log', 'yscale', 'log');
+    set(gca, 'xscale', 'log', 'yscale', 'log', 'fontsize', fontSize-3);
+    xlabel("T_{90} [s]", "interpreter", "tex", "fontsize", fontSize);
+    ylabel("dN / dT_{90} [s^{-1}]", "interpreter", "tex", "fontsize", fontSize);
 hold off;
 
 % Figure 5: Histogram for reduced dataset of all
 figure("color", figureColor); hold on; box on;
-    histogram('BinEdges', synSam.all.binEdges, 'BinCounts', synSam.all.reduced.percentile50.countsVec);
+    histogram('BinEdges', synSam.all.reduced.percentile50.binEdges, 'BinCounts', synSam.all.reduced.percentile50.countsVec);
     xline(3, 'color', 'green');
     title("Histogram for reduced GRB dataset", "fontsize", fontSize);
     xlim([10^-2,10^3]);
-    xlabel("T_{90}", "interpreter", "tex", "fontsize", fontSize);
-    ylabel("dN/dlog(T_{90})", "interpreter", "tex", "fontsize", fontSize);
-    set(gca, 'xscale', 'log');
+    set(gca, 'xscale', 'log', 'fontsize', fontSize-3);
+    xlabel("T_{90} [s]", "interpreter", "tex", "fontsize", fontSize);
+    ylabel("dN / dlog(T_{90})", "interpreter", "tex", "fontsize", fontSize);
 hold off;
