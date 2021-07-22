@@ -1,4 +1,4 @@
-function nbins = binMergeStairPlot(counts,binEdges,lineColor,lineWidth)
+function [nbins, binEdges, dNdT] = binMergeStairPlot(counts,binEdges,lineColor,lineWidth)
     % Function that combines adjacent bins with < 5 events
     
     if nargin < 4; error("Not enough input arguments"); end

@@ -3,7 +3,7 @@ close all;
 filePath = mfilename('fullpath');
 [currentDir,fileName,fileExt] = fileparts(filePath); cd(currentDir);
 cd(fileparts(mfilename('fullpath'))); % Change working directory to source code directory.
-addpath(genpath("../../../libmatlab"),"-begin");
+addpath([genpath("../../../libmatlab"), genpath("./functions")], "-begin");
 
 % Figure Parameters
 fontSize = 14;
@@ -23,31 +23,20 @@ saveNewImages = false; % export figure on or off. Must have export_fig installed
 skip.lgrb = 28; % reduce synthetic lgrb dataset of 200,000 to ~1400, equivalent to BATSE; 'freshRunEnabled' must be 'true'
 skip.sgrb = 10; % reduce synthetic sgrb dataset of 18,848 to ~600, equivalent to BATSE; 'freshRunEnabled' must be 'true'
 numBins = 59; % number of bins to bin synthetic data in; 'freshRunEnabled' must be 'true'
-numBinsBatse = 50; % number of bins to bin BATSE data in; 'freshRunEnabled' must be 'true'
-numBinsSwift = 50; % number of bins to bin BATSE data in; 'freshRunEnabled' must be 'true'
-numBinsFermi = 50; % number of bins to bin BATSE data in; 'freshRunEnabled' must be 'true'
 numRuns = 10000; % number of detector simulation runs; 'freshRunEnabled' must be 'true'
 matFileName = "synSamT90.mat";
 
 if ~any(strcmpi(grbType,["lgrb","sgrb","all"])); error("'grbType' is not an allowable value"); end
 if freshRunEnabled
-    
+    % Begin Data Processing
     lgrb = importdata("..\in\syntheticSampleB10.csv");
     sgrb = importdata("..\in\SyntheticSample_All.txt");
-    batse = importdata("..\in\BATSE.xlsx"); % Complete dataset
-    swift = importdata("..\in\Swift.txt"); % Data aquired 2021-07-11
-    swift.data = rmmissing(swift.data); % remove NaN values
-    fermi = importdata("..\in\Fermi.txt"); % Data aquired 2021-07-11
-    fermi.data = rmmissing(fermi.data); % remove NaN values
     
     icol = struct();
     icol.lgrb.logT90 = 8; % column index of logDur
     icol.lgrb.detProb = 10; % column index of detection probability
     icol.sgrb.T90 = 9; % column index of T90
     icol.sgrb.detProb = 23; % column index of detection probability
-    icol.batse.T90 = 14; % column index of T90
-    icol.swift.T90 = 1; % column index of T90
-    icol.fermi.T90 = 1; % column index of T90
     
     synSam = struct(); 
     synSam.lgrb.T90 = exp(lgrb.data(:,icol.lgrb.logT90));
@@ -56,16 +45,6 @@ if freshRunEnabled
     synSam.sgrb.detProb = sgrb.data(:,icol.sgrb.detProb);
     synSam.all.binEdges = getBinEdges([synSam.sgrb.T90;synSam.lgrb.T90],numBins);
     synSam.all.binCenters = getBinCenters(synSam.all.binEdges);
-    
-    synSam.batse.T90 = batse.data.x1966GRBs(:,icol.batse.T90);
-    synSam.batse.binEdges = getBinEdges(synSam.batse.T90,numBinsBatse);
-    synSam.batse.binCenters = getBinCenters(synSam.batse.binEdges);
-    synSam.swift.T90 = swift.data(:,icol.swift.T90);
-    synSam.swift.binEdges = getBinEdges(synSam.swift.T90,numBinsSwift);
-    synSam.swift.binCenters = getBinCenters(synSam.swift.binEdges);
-    synSam.fermi.T90 = fermi.data(:,icol.fermi.T90);
-    synSam.fermi.binEdges = getBinEdges(synSam.fermi.T90,numBinsFermi);
-    synSam.fermi.binCenters = getBinCenters(synSam.fermi.binEdges);
 
     synSam.lgrb.whole.ndata = length(synSam.lgrb.T90);
     synSam.lgrb.whole.countsVec = histcounts(synSam.lgrb.T90,synSam.all.binEdges);
@@ -74,14 +53,7 @@ if freshRunEnabled
     synSam.sgrb.whole.countsVec = histcounts(synSam.sgrb.T90,synSam.all.binEdges);
     [synSam.sgrb.whole.countsVec, synSam.sgrb.whole.binCenters, synSam.sgrb.whole.binEdges] = trimZeros(synSam.sgrb.whole.countsVec, synSam.all.binEdges);
     synSam.all.whole.ndata = length([synSam.lgrb.T90;synSam.sgrb.T90]);
-    synSam.all.whole.countsVec = histcounts([synSam.lgrb.T90;synSam.sgrb.T90],synSam.all.binEdges);
-    synSam.batse.ndata = length(synSam.batse.T90);
-    synSam.batse.countsVec = histcounts(synSam.batse.T90,synSam.batse.binEdges);
-    synSam.swift.ndata = length(synSam.swift.T90);
-    synSam.swift.countsVec = histcounts(synSam.swift.T90,synSam.swift.binEdges);
-    synSam.fermi.ndata = length(synSam.fermi.T90);
-    synSam.fermi.countsVec = histcounts(synSam.fermi.T90,synSam.fermi.binEdges);
-    
+    synSam.all.whole.countsVec = histcounts([synSam.lgrb.T90;synSam.sgrb.T90],synSam.all.binEdges);    
     
     % Normalize the ratio of LGRBs/SGRBs to the observed ratio for BATSE in the combined, pre-detected dataset. Does not affect any other computations.
     synSam.all.whole.normalized.ndata = length([synSam.lgrb.T90(1:round(length(synSam.sgrb.T90)*1366/600));synSam.sgrb.T90]);
@@ -104,7 +76,7 @@ if freshRunEnabled
         synSam.all.reducedVec(i).ndata = length([T90.lgrb;T90.sgrb]);
         synSam.all.reducedVec(i).countsVec = histcounts([T90.lgrb;T90.sgrb],synSam.all.binEdges);
     end
-    clear('lgrb','sgrb','batse','swift','fermi','icol','Mask','T90');
+    clear('lgrb','sgrb','icol','Mask','T90');
     
     for i = 1:numBins
         % Switch the positions of countsVec and reducedVec in the struct
@@ -154,7 +126,7 @@ if freshRunEnabled
     [synSam.all.reduced.percentile05.countsVec, synSam.all.reduced.percentile05.binCenters, synSam.all.reduced.percentile05.binEdges] ...
         = trimZeros(synSam.all.reduced.percentile05.countsVec, synSam.all.binEdges);
     
-    % Convert the dependent variable dN/dlogT to dN/dT by dividing it by T90
+    % Convert the dependent variable dN/dlog(T) to dN/dT by dividing it by T90
     synSam.lgrb.whole.dNdT = synSam.lgrb.whole.countsVec ./ synSam.lgrb.whole.binCenters;
     synSam.sgrb.whole.dNdT = synSam.sgrb.whole.countsVec ./ synSam.sgrb.whole.binCenters;
     synSam.all.whole.dNdT = synSam.all.whole.countsVec ./ synSam.all.binCenters;
@@ -162,9 +134,6 @@ if freshRunEnabled
     synSam.lgrb.reduced.percentile50.dNdT = synSam.lgrb.reduced.percentile50.countsVec ./ synSam.lgrb.reduced.percentile50.binCenters;
     synSam.sgrb.reduced.percentile50.dNdT = synSam.sgrb.reduced.percentile50.countsVec ./ synSam.sgrb.reduced.percentile50.binCenters;
     synSam.all.reduced.percentile50.dNdT = synSam.all.reduced.percentile50.countsVec ./ synSam.all.reduced.percentile50.binCenters;
-    synSam.batse.dNdT = synSam.batse.countsVec ./ synSam.batse.binCenters;
-    synSam.swift.dNdT = synSam.swift.countsVec ./ synSam.swift.binCenters;
-    synSam.fermi.dNdT = synSam.fermi.countsVec ./ synSam.fermi.binCenters;
     
     % Create a smooth fit for the binned data. Must have Curve Fitting Toolbox installed.
     fo = fitoptions('Method','NonlinearLeastSquares','StartPoint',[1,1,1]);
@@ -194,12 +163,11 @@ if freshRunEnabled
     % Save mat file
     synSam.output.path = "../out"; if ~isfolder(synSam.output.path); mkdir(synSam.output.path); end
     save(synSam.output.path + "/" + matFileName,"synSam");
-
+    
 else
     % Load mat file
     synSam.output.path = "../out";
     load(synSam.output.path + "/" + matFileName); % loads synSam object
-    
 end
 
 % Figure 1: Histogram for whole dataset
@@ -357,56 +325,3 @@ figure("color", figureColor); hold on; box on;
         end
     end
 hold off;
-
-if strcmpi(grbType,"all")
-    
-    % Figure 5: Plot dN/dT of BATSE dataset
-    figure("color", figureColor); hold on; box on;
-        hist2stairs(synSam.batse.dNdT, synSam.batse.binEdges, secondaryColor, lineWidth);
-        nbins = binMergeStairPlot(synSam.batse.countsVec, synSam.batse.binEdges, defaultColor, lineWidth);
-        %xline([2e-2, 2e2], 'color', 'blue', 'lineWidth', lineWidth);
-        set(gca, 'xscale', 'log', 'yscale', 'log', 'fontsize', fontSize-3);
-        xlabel("T_{90} [s]", "interpreter", "tex", "fontsize", fontSize);
-        ylabel("dN / dT_{90} [s^{-1}]", "interpreter", "tex", "fontsize", fontSize);
-        legend([synSam.batse.ndata + " BATSE observed GRBs in " + numBinsBatse + " bins", "Adjacent bins with <5 events merged," + newline ...
-               + "resulting in " + nbins + " bins"], "interpreter", "tex", "location", "southwest", "fontSize", fontSize-3);
-        if saveNewImages
-            export_fig(synSam.output.path + "/" + "BatseDNDT.png", "-m4 -transparent");
-        end
-    hold off;
-
-    % Figure 6: Plot dN/dT of Swift dataset
-    figure("color", figureColor); hold on; box on;
-        hist2stairs(synSam.swift.dNdT, synSam.swift.binEdges, secondaryColor, lineWidth);
-        nbins = binMergeStairPlot(synSam.swift.countsVec, synSam.swift.binEdges, defaultColor, lineWidth);
-        %xline([4e-2, 2e2], 'color', 'magenta', 'lineWidth', lineWidth);
-        xlim([4e-3, 1e4]);
-        ylim([1e-4, 1e3]);
-        set(gca, 'xscale', 'log', 'yscale', 'log', 'fontsize', fontSize-3);
-        xlabel("T_{90} [s]", "interpreter", "tex", "fontsize", fontSize);
-        ylabel("dN / dT_{90} [s^{-1}]", "interpreter", "tex", "fontsize", fontSize);
-        legend([synSam.swift.ndata + " Swift observed GRBs in " + numBinsSwift + " bins", "Adjacent bins with <5 events merged," + newline ...
-               + "resulting in " + nbins + " bins"], "interpreter", "tex", "location", "southwest", "fontSize", fontSize-3);
-        if saveNewImages
-            export_fig(synSam.output.path + "/" + "SwiftDNDT.png", "-m4 -transparent");
-        end
-    hold off;
-
-    % Figure 7: Plot dN/dT of Fermi dataset
-    figure("color", figureColor); hold on; box on;
-        hist2stairs(synSam.fermi.dNdT, synSam.fermi.binEdges, secondaryColor, lineWidth);
-        nbins = binMergeStairPlot(synSam.fermi.countsVec, synSam.fermi.binEdges, defaultColor, lineWidth);
-        %xline([1e-1, 2e2], 'color', 'green', 'lineWidth', lineWidth);
-        xlim([3e-3, 3e3]);
-        ylim([3e-4, 3e3]);
-        set(gca, 'xscale', 'log', 'yscale', 'log', 'fontsize', fontSize-3);
-        xlabel("T_{90} [s]", "interpreter", "tex", "fontsize", fontSize);
-        ylabel("dN / dT_{90} [s^{-1}]", "interpreter", "tex", "fontsize", fontSize);
-        legend([synSam.fermi.ndata + " Fermi observed GRBs in " + numBinsFermi + " bins", "Adjacent bins with <5 events merged," + newline ...
-               + "resulting in " + nbins + " bins"], "interpreter", "tex", "location", "southwest", "fontSize", fontSize-3);
-        if saveNewImages
-            export_fig(synSam.output.path + "/" + "FermiDNDT.png", "-m4 -transparent");
-        end
-    hold off;
-    
-end
