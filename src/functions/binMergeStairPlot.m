@@ -31,8 +31,8 @@ function [nbins, binEdges, dNdT] = binMergeStairPlot(counts,binEdges,lineColor,l
     end
     
     nbins = length(binEdges)-1;
-    binCenters = getBinCenters(binEdges);
-    dNdT = counts ./ binCenters;
+    binWidths = getBinWidths(binEdges);
+    dNdT = counts ./ binWidths;
     
     % Plot new dN/dT
     hist2stairs(dNdT, binEdges, lineColor, lineWidth)

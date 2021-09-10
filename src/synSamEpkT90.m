@@ -45,7 +45,7 @@ if freshRunEnabled
     
     % Create T90 bins
     synSam.all.binEdges = getBinEdges([synSam.sgrb.T90; synSam.lgrb.T90], nbins);
-    synSam.all.binCenters = getBinCenters(synSam.all.binEdges);
+    synSam.all.binWidths = getBinWidths(synSam.all.binEdges);
     
     % Determine BATSE-detectable events and reduce dataset size to be comparable to BATSE LGRB catalog. Repeat 'nruns' times.
     for i = 1:nruns
@@ -139,14 +139,14 @@ if freshRunEnabled
     synSam.both.cut16.percentile50.ndata = sum(synSam.both.cut16.percentile50.countsVec);
     
     % Trim Zeros off of binned data for proper algorithmic x-axis limits
-    [synSam.both.all.trim.percentile50.countsVec, synSam.both.all.trim.percentile50.binCenters, synSam.both.all.trim.percentile50.binEdges] ...
+    [synSam.both.all.trim.percentile50.countsVec, synSam.both.all.trim.percentile50.binWidths, synSam.both.all.trim.percentile50.binEdges] ...
         = trimZeros(synSam.both.all.percentile50.countsVec, synSam.all.binEdges);
     
-    % Convert the dependent variable dN/dlog(T) to dN/dT by dividing it by T90
-    synSam.both.all.trim.percentile50.dNdT = synSam.both.all.trim.percentile50.countsVec ./ synSam.both.all.trim.percentile50.binCenters;
-    synSam.both.cut50.percentile50.dNdT = synSam.both.cut50.percentile50.countsVec ./ synSam.all.binCenters;
-    synSam.both.cut84.percentile50.dNdT = synSam.both.cut84.percentile50.countsVec ./ synSam.all.binCenters;
-    synSam.both.cut16.percentile50.dNdT = synSam.both.cut16.percentile50.countsVec ./ synSam.all.binCenters;
+    % Convert the histogram counts to dN/dT by dividing each bin by its width
+    synSam.both.all.trim.percentile50.dNdT = synSam.both.all.trim.percentile50.countsVec ./ synSam.both.all.trim.percentile50.binWidths;
+    synSam.both.cut50.percentile50.dNdT = synSam.both.cut50.percentile50.countsVec ./ synSam.all.binWidths;
+    synSam.both.cut84.percentile50.dNdT = synSam.both.cut84.percentile50.countsVec ./ synSam.all.binWidths;
+    synSam.both.cut16.percentile50.dNdT = synSam.both.cut16.percentile50.countsVec ./ synSam.all.binWidths;
     
     % Save mat file
     synSam.output.path = "../out"; if ~isfolder(synSam.output.path); mkdir(synSam.output.path); end
@@ -156,6 +156,22 @@ else
     synSam.output.path = "../out";
     load(synSam.output.path + "/" + matFileName); % loads synSam object   
 end
+
+EpkBinEdges = getBinEdges(synSam.both.all.detectedRand.Epk, nbins);
+EpkCounts = histcounts(synSam.both.all.detectedRand.Epk, EpkBinEdges);
+
+% Figure 0: Histogram of Epk
+figure("color", figureColor); hold on; box on;
+    histogram('BinEdges', EpkBinEdges, 'BinCounts', EpkCounts, "normalization", "probability");
+    legend("Synthetic events, n = " + length(synSam.both.all.detectedRand.Epk) + ", in " + nbins + " bins" ...
+          , "interpreter", "tex", "location", "northwest", "fontSize", fontSize-3);
+    set(gca, 'xscale', 'log', 'yscale', 'log', 'fontsize', fontSize-3);
+    xlabel("Epk [keV]", "interpreter", "tex", "fontsize", fontSize);
+    ylabel("Counts", "interpreter", "tex", "fontsize", fontSize);
+    [lower, upper, lowTick, upTick, span] = plotLimits(EpkBinEdges, 'log');
+    xlim([lower, upper]);
+    %ylim([0.5, 1e3]);
+hold off;
 
 % Figure 1: Epk vs T90 of random detected dataset
 figure("color", figureColor); hold on; box on;
@@ -172,6 +188,9 @@ figure("color", figureColor); hold on; box on;
     xlabel("T_{90} [s]", "interpreter", "tex", "fontsize", fontSize);
     ylabel("E_{peak} [keV]", "interpreter", "tex", "fontsize", fontSize);
     title("Detectable GRBs (n = " + synSam.both.all.percentile50.ndata + ")", "fontSize", fontSize+1);
+    if saveNewImages
+        export_fig(synSam.output.path + "/" + "synEpkT90_det.png", "-m4 -transparent");
+    end
 hold off;
 
 % Figure 2: Plot dN/dT of full detected dataset
@@ -184,22 +203,25 @@ figure("color", figureColor); hold on; box on;
                , "Adjacent bins with <5 events merged," + newline + "resulting in " + newBins + " bins"] ...
                , "interpreter", "tex", "location", "southwest", "fontSize", fontSize-3);
         title("Full Detected Data (mean of " + nruns + " runs)", "fontSize", fontSize+1);
-        [xlower, xupper] = plotLimits(binEdges, 'log');
-        xlim([xlower, xupper]);
-        [ylower, yupper] = plotLimits(dNdT, 'log');
-        ylim([ylower, yupper]);
+        [xlower, xupper, xlowTick, xupTick, xspan] = plotLimits(binEdges, 'log');
+        [ylower, yupper, ylowTick, yupTick, yspan] = plotLimits(dNdT, 'log');
     else
         legend([synSam.both.all.percentile50.ndata + " detected GRBs," + newline + "mean of " + nruns + " runs"] ...
                , "interpreter", "tex", "location", "southwest", "fontSize", fontSize-3);
         title("Full Detected Data", "fontSize", fontSize+1);
-        [xlower, xupper] = plotLimits(synSam.both.all.trim.percentile50.binEdges, 'log');
-        xlim([xlower, xupper]);
-        [ylower, yupper] = plotLimits(synSam.both.all.trim.percentile50.dNdT, 'log');
-        ylim([ylower, yupper]);
+        [xlower, xupper, xlowTick, xupTick, xspan] = plotLimits(synSam.both.all.trim.percentile50.binEdges, 'log');
+        [ylower, yupper, ylowTick, yupTick, yspan] = plotLimits(synSam.both.all.trim.percentile50.dNdT, 'log');
     end
+    xlim([xlower, xupper]);
+    ylim([ylower, yupper]);
+    xticks(10.^(linspace(xlowTick, xupTick, xspan)));
+    yticks(10.^(linspace(ylowTick, yupTick, yspan)));
     set(gca, 'xscale', 'log', 'yscale', 'log', 'fontsize', fontSize-3);
     xlabel("T_{90} [s]", "interpreter", "tex", "fontsize", fontSize);
     ylabel("dN / dT_{90} [s^{-1}]", "interpreter", "tex", "fontsize", fontSize);
+    if saveNewImages
+        export_fig(synSam.output.path + "/" + "synEpkT90_dNdT.png", "-m4 -transparent");
+    end
 hold off;
 
 % Figure 3: Plot dN/dT of dataset cut at mean
@@ -211,19 +233,23 @@ figure("color", figureColor); hold on; box on;
                , "Adjacent bins with <5 events merged," + newline + "resulting in " + newBins + " bins"] ...
                , "interpreter", "tex", "location", "southwest", "fontSize", fontSize-3);
         title("Detected Data Cut at Epk Mean (mean of " + nruns + " runs)", "fontSize", fontSize+1);
-        [ylower, yupper] = plotLimits(dNdT, 'log');
-        ylim([ylower, yupper]);
+        [ylower, yupper, ylowTick, yupTick, yspan] = plotLimits(dNdT, 'log');
     else
         legend([synSam.both.cut50.percentile50.ndata + " detected GRBs," + newline + "mean of " + nruns + " runs"] ...
                , "interpreter", "tex", "location", "southwest", "fontSize", fontSize-3);
         title("Detected Data Cut at Epk Mean (for T90 >= 20 s)", "fontSize", fontSize+1);
-        [ylower, yupper] = plotLimits(synSam.both.cut50.percentile50.dNdT, 'log');
-        ylim([ylower, yupper]);
+        [ylower, yupper, ylowTick, yupTick, yspan] = plotLimits(synSam.both.cut50.percentile50.dNdT, 'log');
     end
     xlim([xlower, xupper]);
+    ylim([ylower, yupper]);
+    xticks(10.^(linspace(xlowTick, xupTick, xspan)));
+    yticks(10.^(linspace(ylowTick, yupTick, yspan)));
     set(gca, 'xscale', 'log', 'yscale', 'log', 'fontsize', fontSize-3);
     xlabel("T_{90} [s]", "interpreter", "tex", "fontsize", fontSize);
     ylabel("dN / dT_{90} [s^{-1}]", "interpreter", "tex", "fontsize", fontSize);
+    if saveNewImages
+        export_fig(synSam.output.path + "/" + "synEpkT90_dNdT_cutMean.png", "-m4 -transparent");
+    end
 hold off;
 
 % Figure 4: Plot dN/dT of dataset cut at mean + std
@@ -235,19 +261,23 @@ figure("color", figureColor); hold on; box on;
                , "Adjacent bins with <5 events merged," + newline + "resulting in " + newBins + " bins"] ...
                , "interpreter", "tex", "location", "southwest", "fontSize", fontSize-3);
         title("Detected Data Cut at Epk Mean + Std (mean of " + nruns + " runs)", "fontSize", fontSize+1);
-        [ylower, yupper] = plotLimits(dNdT, 'log');
-        ylim([ylower, yupper]);
+        [ylower, yupper, ylowTick, yupTick, yspan] = plotLimits(dNdT, 'log');
     else
         legend([synSam.both.cut84.percentile50.ndata + " detected GRBs," + newline + "mean of " + nruns + " runs"] ...
                , "interpreter", "tex", "location", "southwest", "fontSize", fontSize-3);
         title("Detected Data Cut at Epk Mean + Std (for T90 >= 20 s)", "fontSize", fontSize+1);
-        [ylower, yupper] = plotLimits(synSam.both.cut84.percentile50.dNdT, 'log');
-        ylim([ylower, yupper]);
+        [ylower, yupper, ylowTick, yupTick, yspan] = plotLimits(synSam.both.cut84.percentile50.dNdT, 'log');
     end
     xlim([xlower, xupper]);
+    ylim([ylower, yupper]);
+    xticks(10.^(linspace(xlowTick, xupTick, xspan)));
+    yticks(10.^(linspace(ylowTick, yupTick, yspan)));
     set(gca, 'xscale', 'log', 'yscale', 'log', 'fontsize', fontSize-3);
     xlabel("T_{90} [s]", "interpreter", "tex", "fontsize", fontSize);
     ylabel("dN / dT_{90} [s^{-1}]", "interpreter", "tex", "fontsize", fontSize);
+    if saveNewImages
+        export_fig(synSam.output.path + "/" + "synEpkT90_dNdT_cutMean+Std.png", "-m4 -transparent");
+    end
 hold off;
 
 % Figure 5: Plot dN/dT of dataset cut at mean - std
@@ -259,17 +289,21 @@ figure("color", figureColor); hold on; box on;
                , "Adjacent bins with <5 events merged," + newline + "resulting in " + newBins + " bins"] ...
                , "interpreter", "tex", "location", "southwest", "fontSize", fontSize-3);
         title("Detected Data Cut at Epk Mean - Std (mean of " + nruns + " runs)", "fontSize", fontSize+1);
-        [ylower, yupper] = plotLimits(dNdT, 'log');
-        ylim([ylower, yupper]);
+        [ylower, yupper, ylowTick, yupTick, yspan] = plotLimits(dNdT, 'log');
     else
         legend([synSam.both.cut16.percentile50.ndata + " detected GRBs," + newline + "mean of " + nruns + " runs"] ...
                , "interpreter", "tex", "location", "southwest", "fontSize", fontSize-3);
         title("Detected Data Cut at Epk Mean - Std (for T90 >= 20 s)", "fontSize", fontSize+1);
-        [ylower, yupper] = plotLimits(synSam.both.cut16.percentile50.dNdT, 'log');
-        ylim([ylower, yupper]);
+        [ylower, yupper, ylowTick, yupTick, yspan] = plotLimits(synSam.both.cut16.percentile50.dNdT, 'log');
     end
     xlim([xlower, xupper]);
+    ylim([ylower, yupper]);
+    xticks(10.^(linspace(xlowTick, xupTick, xspan)));
+    yticks(10.^(linspace(ylowTick, yupTick, yspan)));
     set(gca, 'xscale', 'log', 'yscale', 'log', 'fontsize', fontSize-3);
     xlabel("T_{90} [s]", "interpreter", "tex", "fontsize", fontSize);
     ylabel("dN / dT_{90} [s^{-1}]", "interpreter", "tex", "fontsize", fontSize);
+    if saveNewImages
+        export_fig(synSam.output.path + "/" + "synEpkT90_dNdT_cutMean-Std.png", "-m4 -transparent");
+    end
 hold off;

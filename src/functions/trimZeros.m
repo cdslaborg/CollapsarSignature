@@ -1,4 +1,4 @@
-function [counts,binCenters,binEdges] = trimZeros(counts,binEdges)
+function [counts, binWidths, binEdges, binCenters] = trimZeros(counts, binEdges)
     % Function that takes as input histogram-like data and trims off all
     % values on the tails of the distribution that are either zeros or are 
     % surrounded by zeros. Assumes zeros are only on the tails.
@@ -22,5 +22,6 @@ function [counts,binCenters,binEdges] = trimZeros(counts,binEdges)
             binEdges(1:max(zeroIndiciesLeft)) = [];
         end
     end
+    binWidths = getBinWidths(binEdges);
     binCenters = getBinCenters(binEdges);
 end
