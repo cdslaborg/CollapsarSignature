@@ -1,0 +1,112 @@
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+!%  
+!%  Description:
+!%      +   Run the Monte Carlo sampler of the ParaMonte library given the input log-target density function `getLogFunc()`.
+!%  Output:
+!%      +   The simulation output files.
+!%  Author:
+!%      +   Computational Data Science Lab, Monday 9:03 AM, May 16 2016, ICES, UT Austin
+!%  Visit:
+!%      +   https://www.cdslab.org/paramonte
+!%
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+!
+!   USAGE:
+!
+!       --  Comments must begin with an exclamation mark (!).
+!       --  Comments can appear anywhere on an empty line or, after a value assignment.
+!       --  All variable assignments are optional and can be commented out. In such cases, appropriate default values will be assigned.
+!       --  Use ParaDRAM namelist (group) name to group a set of ParaDRAM simulation specification variables.
+!       --  The order of the input variables in the namelist groups is irrelevant and unimportant.
+!       --  Variables can be defined multiple times, but only the last definition will be considered as input.
+!       --  All variable names are case insensitive. However, for clarity, this software follows the camelCase code-writing practice.
+!       --  String values must be enclosed with either single or double quotation marks.
+!       --  Logical values are case-insensitive and can be either .true., true, or t for a TRUE value, and .false., false, or f for a FALSE value.
+!       --  All vectors and arrays in the input file begin with index 1. This is following the convention of 
+!           the majority of science-oriented programming languages: Fortran, Julia, Mathematica, MATLAB, and R.
+!
+!      For comprehensive guidelines on the input file organization and rules, visit: 
+!   
+!           https://www.cdslab.org/paramonte/notes/usage/paradram/input/
+!   
+!      To see detailed descriptions of each of variables, visit:
+!   
+!           https://www.cdslab.org/paramonte/notes/usage/paradram/specifications/
+!
+
+&ParaDRAM
+
+    ! Base specifications
+
+    description                         = "This is a simulation test."
+                                                            ! No comments within strings are allowed.
+   !outputColumnWidth                   = 25                ! this is an example of a variable that is commented out and 
+                                                            ! therefore, its value won't be read by the sampler routine.
+                                                            ! To pass it to the routine, simply remove the ! mark at 
+                                                            ! the beginning of the line.
+    outputRealPrecision                 = 17
+   !outputDelimiter                     = ","
+    outputFileName                      = "../../out/Fortran/T90Epk/"   ! the last forward-slash character indicates that this 
+                                                            ! is the folder where the output files will have to stored.
+                                                            ! However, since no output filename prefix has been specified,
+                                                            ! the output filenames will be assigned a randomly-generated prefix.
+   !sampleSize                          = 1966
+    randomSeed                          = 2136275,
+    chainFileFormat                     = "compact"
+
+    variableNameList = "AverageLogT90_s"
+                     , "AverageLogEpk_s"
+                     , "LogStandardDeviationT90_s" 
+                     , "LogStandardDeviationEpk_s"
+                     , "FirsherTrans(rho_s)"
+                     , "Amplitude_s"
+                     , "AverageLogT90_l"
+                     , "AverageLogEpk_l"
+                     , "LogStandardDeviationT90_l"
+                     , "LogStandardDeviationEpk_l"
+                     , "FirsherTrans(rho_l)"
+                     , "Amplitude_l"
+
+    domainLowerLimitVec                 = -1000., 5.5221791, 3*-1000., 1.e-4, 1.60943791, 4*-1000., 1.e-4
+    domainUpperLimitVec                 = 1.60943791, 4*1000., 1.e100, 1000., 5.5221791, 3*1000., 1.e100
+    parallelizationModel                = "single chain"    ! "singleChain" would also work. Similarly, "multichain", "multi chain", or "multiChain".
+    targetAcceptanceRate                = 0.1, 0.3
+    progressReportPeriod                = 1000
+    maxNumDomainCheckToWarn             = 100
+    maxNumDomainCheckToStop             = 1000
+    restartFileFormat                   = "binary"
+    overwriteRequested                  = false             ! FALSE, false, .false., .f., and f would be also all valid logical values representing False
+    silentModeRequested                 = false             ! FALSE, false, .false., .f., and f would be also all valid logical values representing False
+   !mpiFinalizeRequested                = true              ! TRUE, true, .true., .t., and t would be also all valid logical values representing True
+
+    ! MCMC specifications
+
+    chainSize                           = 100000
+    startPointVec                       = -1.0601318, 5.9490766, 2*0., 0.7, 1., 4.0611856, 5.0952816, 2*0., 0.7, 1.
+   !sampleRefinementCount               = 10
+    sampleRefinementMethod              = "BatchMeans"
+   !randomStartPointDomainLowerLimitVec = 6*-100.e0         ! repetition pattern rules apply again here. 4 dimensions => 4-element vector of values.
+   !randomStartPointDomainUpperLimitVec = 6*100.0           ! repetition pattern rules apply again here. 4 dimensions => 4-element vector of values.
+    randomStartPointRequested           = false
+
+    ! DRAM specifications
+
+    scaleFactor                         = "2*0.5*Gelman"    ! The asterisk here means multiplication since it is enclosed within quotation marks.
+    proposalModel                       = "normal"          ! or "uniform" as you wish.
+    adaptiveUpdateCount                 = 10000000
+    adaptiveUpdatePeriod                = 35
+    greedyAdaptationCount               = 0
+   !delayedRejectionCount               = 5
+   !delayedRejectionScaleFactorVec      = 5*1.
+   !burninAdaptationMeasure             = 1.
+   !proposalStartStdVec                 = 7*1.0             ! repetition pattern rules apply again here. 4 dimensions => 4-element vector of values.
+   !proposalStartCorMat                 =   1,0,0,0,        ! 2-dimensional correlation-matrix definition, although it is commented out and won't be read.
+   !                                        0,1,0,0,
+   !                                        0,0,1,0,
+   !                                        0,0,0,1,
+   !proposalStartCovMat                 =   100,0,0,0,
+   !                                        0,100,0,0,
+   !                                        0,0,100,0,
+   !                                        0,0,0,100,
+
+/

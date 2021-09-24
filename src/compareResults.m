@@ -13,8 +13,8 @@ defaultColor = [0, 0.4470, 0.7410];
 secondaryColor = '#F80'; %orange
 
 % Options
-nbins.T90 = 45;
-nbins.Epk = 45;
+histParam.T90.nbins = 45;
+histParam.Epk.nbins = 45;
 saveNewImages = false; % export figure on or off. Must have export_fig installed.
 
 % T90 Data
@@ -22,39 +22,44 @@ tic
 load("../out/synSamT90.mat"); % Load mat file
 batse = importdata("..\in\BatseDur.xlsx");
 icol.batse.T90 = 4; % column index of T90
-data.batse.T90 = batse.data(:, icol.batse.T90);
-data.batse.ndata = length(data.batse.T90);
+data.batse.T90.data = batse.data(:, icol.batse.T90);
+data.batse.T90.ndata = length(data.batse.T90.data);
 
-binEdges = getBinEdges(data.batse.T90, nbins.T90);
-binCenters = getBinCenters(binEdges);
-binWidths = getBinCenters(binEdges);
+histParam.T90.binEdges = getBinEdges(data.batse.T90.data, histParam.T90.nbins);
+histParam.T90.binCenters = getBinCenters(histParam.T90.binEdges);
+histParam.T90.binWidths = getBinWidths(histParam.T90.binEdges);
+histParam.T90.countsVec = histcounts(data.batse.T90.data, histParam.T90.binEdges);
+histParam.T90.logBinEdges = log(histParam.T90.binEdges);
+histParam.T90.logBinCenters = log(histParam.T90.binCenters);
 
-data.batse.countsVec = histcounts(data.batse.T90, binEdges);
-logBinEdges = log(binEdges);
-logBinCenters = log(binCenters);
 fo = fitoptions('Method', 'NonlinearLeastSquares', 'StartPoint', [44, -0.4, 1.7, 129, 3.5, 1.4]);
 ft = fittype( ...
      'a / (c * sqrt(2 * pi)) * exp(-1 / 2 * ((x - b) / c)^2) + d / (g * sqrt(2 * pi)) * exp(-1 / 2 * ((x - f) / g)^2)' ...
      , 'options', fo); % fit a double Gaussian
-data.batse.f = fit(logBinCenters.', data.batse.countsVec.', ft);
+data.batse.T90.fit = fit(histParam.T90.logBinCenters.', histParam.T90.countsVec.', ft);
 toc
 
 % Figure 1: Plot T90 histograms for BATSE and synSam
 figure("color", figureColor); hold on; box on;
-    histogram('BinEdges', binEdges, 'BinCounts', data.batse.countsVec);
+    histogram('BinEdges', histParam.T90.binEdges, 'BinCounts', histParam.T90.countsVec);
     histogram('BinEdges', synSam.all.reduced.percentile50.binEdges, 'BinCounts', synSam.all.reduced.percentile50.countsVec, 'FaceColor', secondaryColor);
-    plot(binCenters, data.batse.f(logBinCenters), 'color', 'blue', 'lineWidth', lineWidth);
+    plot(histParam.T90.binCenters, data.batse.T90.fit(histParam.T90.logBinCenters), 'color', 'black', 'lineWidth', lineWidth);
+    plot(histParam.T90.binCenters, gaussian(data.batse.T90.fit.a, data.batse.T90.fit.b, data.batse.T90.fit.c, histParam.T90.logBinCenters) ...
+        , 'color', 'blue', 'lineWidth', lineWidth);
+    plot(histParam.T90.binCenters, gaussian(data.batse.T90.fit.d, data.batse.T90.fit.f, data.batse.T90.fit.g, histParam.T90.logBinCenters) ...
+        , 'color', 'red', 'lineWidth', lineWidth);
+%     xline( [min(data.batse.T90.data), min(synSam.all.binEdges), max(data.batse.T90.data) ...
+%          , max(synSam.all.binEdges)], 'color', 'green');
     set(gca, 'xscale', 'log', 'fontsize', fontSize-3);
     xlabel("T_{90} [s]", "interpreter", "tex", "fontsize", fontSize);
     ylabel("Counts", "interpreter", "tex", "fontsize", fontSize);
-    [ax.lower, ax.upper, ax.lowTick, ax.upTick, ax.span] = plotLimits([synSam.all.reduced.percentile50.binEdges, binEdges], 'log');
+    [ax.lower, ax.upper, ax.lowTick, ax.upTick, ax.span] = plotLimits([synSam.all.reduced.percentile50.binEdges, histParam.T90.binEdges], 'log');
     xlim([ax.lower, ax.upper]);
     xticks(10.^(linspace(ax.lowTick, ax.upTick, ax.span)));
     ylim([0, 200]);
-    legend(["BATSE events, n = " + data.batse.ndata + ", in " + nbins.T90 + " bins" ...
-          , "Synthetic events, n = " + synSam.all.reduced.percentile50.ndata + ", in " + length(synSam.all.reduced.percentile50.countsVec) + " bins"] ...
-          , "interpreter", "tex", "location", "northwest", "fontSize", fontSize-3);
-    %title("BATSE Data, n = " + data.batse.ndata);
+    legend(["BATSE events, n = " + data.batse.T90.ndata + ", in " + histParam.T90.nbins + " bins" ...
+          , "Synthetic events, n = " + synSam.all.reduced.percentile50.ndata + ", in " + length(synSam.all.reduced.percentile50.countsVec) + " bins" ...
+          , "", "Fit: SGRBs", "Fit: LGRBs"], "interpreter", "tex", "location", "northwest", "fontSize", fontSize-3);
 hold off;
 
 %{
@@ -101,7 +106,7 @@ hold off;
 
 
 
-clear('synSam', 'batse', 'icol', 'data');
+clear('synSam', 'batse', 'icol');
 
 % Epk Data
 tic
@@ -109,25 +114,48 @@ load("../out/synSamEpkT90.mat"); % Load mat file
 synSam.both.all.detectedRand.ndata = length(synSam.both.all.detectedRand.Epk);
 batse = importdata("..\in\Batse_orig.xlsx");
 icol.batse.logEpk = 17;
-data.batse.Epk = 10.^(batse.data.x1966GRBs(:, icol.batse.logEpk));
-data.batse.binEdges = getBinEdges([data.batse.Epk.', synSam.both.all.detectedRand.Epk.'], nbins.Epk);
-data.batse.ndata = length(data.batse.Epk);
-data.batse.countsVec = histcounts(data.batse.Epk, data.batse.binEdges);
-synSam.both.all.detectedRand.countsVec = histcounts(synSam.both.all.detectedRand.Epk, data.batse.binEdges);
+data.batse.Epk.data = 10.^(batse.data.x1966GRBs(:, icol.batse.logEpk));
+data.batse.Epk.ndata = length(data.batse.Epk.data);
+
+%data.batse.Epk.binEdges = getBinEdges([data.batse.Epk.data.', synSam.both.all.detectedRand.Epk.'], histParam.Epk.nbins);
+histParam.Epk.binEdges = getBinEdges(data.batse.Epk.data, histParam.Epk.nbins);
+histParam.Epk.binCenters = getBinCenters(histParam.Epk.binEdges);
+histParam.Epk.binWidths = getBinWidths(histParam.Epk.binEdges);
+histParam.Epk.countsVec = histcounts(data.batse.Epk.data, histParam.Epk.binEdges);
+synSam.both.all.detectedRand.countsVec = histcounts(synSam.both.all.detectedRand.Epk, histParam.Epk.binEdges);
+histParam.Epk.logBinEdges = log(histParam.Epk.binEdges);
+histParam.Epk.logBinCenters = log(histParam.Epk.binCenters);
+
+fo = fitoptions('Method', 'NonlinearLeastSquares', 'StartPoint', [240, 5., 0.8, 44., 6.7, 0.5]);
+ft = fittype( ...
+     'a / (c * sqrt(2 * pi)) * exp(-1 / 2 * ((x - b) / c)^2) + d / (g * sqrt(2 * pi)) * exp(-1 / 2 * ((x - f) / g)^2)' ...
+     , 'options', fo); % fit a double Gaussian
+data.batse.Epk.fit = fit(histParam.Epk.logBinCenters.', histParam.Epk.countsVec.', ft);
 toc
 
 % Figure 2: Plot Epk histograms for BATSE and synSam
 figure("color", figureColor); hold on; box on;
-    histogram('BinEdges', data.batse.binEdges, 'BinCounts', data.batse.countsVec, "normalization", "probability");
-    histogram('BinEdges', data.batse.binEdges, 'BinCounts', synSam.both.all.detectedRand.countsVec, "normalization", "probability", 'FaceColor', secondaryColor);
-    set(gca, 'xscale', 'log', 'yscale', 'log', 'fontsize', fontSize-3);
+    histogram('BinEdges', histParam.Epk.binEdges, 'BinCounts', histParam.Epk.countsVec);
+    histogram('BinEdges', histParam.Epk.binEdges, 'BinCounts', synSam.both.all.detectedRand.countsVec, 'FaceColor', secondaryColor);
+    plot(histParam.Epk.binCenters, data.batse.Epk.fit(histParam.Epk.logBinCenters), 'color', 'black', 'lineWidth', lineWidth);
+    plot(histParam.Epk.binCenters, gaussian(data.batse.Epk.fit.a, data.batse.Epk.fit.b, data.batse.Epk.fit.c, histParam.Epk.logBinCenters) ...
+        , 'color', 'red', 'lineWidth', lineWidth);
+    plot(histParam.Epk.binCenters, gaussian(data.batse.Epk.fit.d, data.batse.Epk.fit.f, data.batse.Epk.fit.g, histParam.Epk.logBinCenters) ...
+        , 'color', 'blue', 'lineWidth', lineWidth);
+%     xline( [min(data.batse.Epk.data), min(synSam.both.all.detectedRand.Epk), max(data.batse.Epk.data) ...
+%          , max(synSam.both.all.detectedRand.Epk)], 'color', 'green');
+    set(gca, 'xscale', 'log', 'fontsize', fontSize-3);
     xlabel("Epk [keV]", "interpreter", "tex", "fontsize", fontSize);
     ylabel("Counts", "interpreter", "tex", "fontsize", fontSize);
-    [lower, upper, lowTick, upTick, span] = plotLimits(data.batse.binEdges, 'log');
-    xlim([lower, upper]);
-    xticks(10.^(linspace(lowTick, upTick, span)));
-    ylim([5e-4, 4e-1]);
-    legend(["BATSE events, n = " + data.batse.ndata + ", in " + nbins.Epk + " bins" ...
-          , "Synthetic events, n = " + synSam.both.all.detectedRand.ndata + ", in " + nbins.Epk + " bins"] ...
-          , "interpreter", "tex", "location", "northwest", "fontSize", fontSize-3);
+    [ax.lower, ax.upper, ax.lowTick, ax.upTick, ax.span] = plotLimits(histParam.Epk.binEdges, 'log');
+    xlim([ax.lower, ax.upper]);
+    xticks(10.^(linspace(ax.lowTick, ax.upTick, ax.span)));
+    ylim([0, 200]);
+    legend(["BATSE events, n = " + data.batse.Epk.ndata + ", in " + histParam.Epk.nbins + " bins" ...
+          , "Synthetic events, n = " + synSam.both.all.detectedRand.ndata + ", in " + histParam.Epk.nbins + " bins" ...
+          , "", "Fit: LGRBs", "Fit: SGRBs"], "interpreter", "tex", "location", "northwest", "fontSize", fontSize-3);
 hold off;
+
+function gauss = gaussian(amp, mu, sigma, x)
+    gauss = amp / (sigma * sqrt(2 * pi)) * exp(-1 / 2 * ((x - mu) / sigma).^2);
+end
