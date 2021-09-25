@@ -110,6 +110,8 @@ contains
         integer(IK)                 :: idata, i, j
         real(RK)                    :: sqrtDetCov
         real(RK)                    :: sqrtDetCov2
+        real(RK)                    :: invSqrtDetCov
+        real(RK)                    :: invSqrtDetCov2
         real(RK)                    :: NormedPoint(NDIM)
         real(RK)                    :: NormedPoint2(NDIM)
 
@@ -174,6 +176,7 @@ contains
             write(output_unit,"(*(g20.13))") ((mv_CovMatUpperCholeskyLower(i,j),j=1,NDIM),new_line("A"),i=1,NDIM)
             stop
         end if
+        invSqrtDetCov = 1._RK / sqrtDetCov
         sqrtDetCov2 = product(mv_CholeskyDiag2) ! sqrt of determinant of the covariance matrix
         if (sqrtDetCov2<=0) then
             write(output_unit,"(*(g0))") "sqrt of covariance determinant is <=0: ", sqrtDetCov2
@@ -183,6 +186,7 @@ contains
             write(output_unit,"(*(g20.13))") ((mv_CovMatUpperCholeskyLower2(i,j),j=1,NDIM),new_line("A"),i=1,NDIM)
             stop
         end if
+        invSqrtDetCov2 = 1._RK / sqrtDetCov2
         
         ! get the full Inverse covariance matricies
         mv_InvCovMat = getInvMatFromCholFac( nd = NDIM, CholeskyLower = mv_CovMatUpperCholeskyLower, Diagonal = mv_CholeskyDiag )
@@ -194,8 +198,8 @@ contains
             NormedPoint(2) = GRB%LogEpk(idata) - mv_meanVec(2)
             NormedPoint2(1) = GRB%LogT90(idata) - mv_meanVec2(1)
             NormedPoint2(2) = GRB%LogEpk(idata) - mv_meanVec2(2)
-            logFunc = logFunc + log(mv_amp * sqrtDetCov * exp(-0.5_RK * dot_product(NormedPoint,matmul(mv_invCovMat,NormedPoint))) &
-                    + mv_amp2 * sqrtDetCov2 * exp(-0.5_RK * dot_product(NormedPoint2,matmul(mv_invCovMat2,NormedPoint2))) )
+            logFunc = logFunc + log(mv_amp * invSqrtDetCov * exp(-0.5_RK * dot_product(NormedPoint,matmul(mv_invCovMat,NormedPoint))) &
+                    + mv_amp2 * invSqrtDetCov2 * exp(-0.5_RK * dot_product(NormedPoint2,matmul(mv_invCovMat2,NormedPoint2))) )
         end do
 
     end function getLogFunc
