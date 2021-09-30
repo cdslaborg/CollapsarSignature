@@ -59,15 +59,15 @@
                      , "LogStandardDeviationT90_s" 
                      , "LogStandardDeviationEpk_s"
                      , "FirsherTrans(rho_s)"
-                     , "Amplitude_s"
+                     , "LogAmplitude_s"
                      , "AverageLogT90_l"
                      , "AverageLogEpk_l"
                      , "LogStandardDeviationT90_l"
                      , "LogStandardDeviationEpk_l"
                      , "FirsherTrans(rho_l)"
-                     , "Amplitude_l"
+                     , "LogAmplitude_l"
 
-    domainLowerLimitVec                 = -1000., 5.5221791, 3*-1000., 1.e-4, 1.60943791, 4*-1000., 1.e-4
+    domainLowerLimitVec                 = -1000., 5.5221791, 3*-1000., -1.e100, 1.60943791, 4*-1000., -1.e100
     domainUpperLimitVec                 = 1.60943791, 4*1000., 1.e100, 1000., 5.5221791, 3*1000., 1.e100
     parallelizationModel                = "single chain"    ! "singleChain" would also work. Similarly, "multichain", "multi chain", or "multiChain".
     targetAcceptanceRate                = 0.1, 0.3
@@ -82,7 +82,7 @@
     ! MCMC specifications
 
     chainSize                           = 100000
-    startPointVec                       = -1.0601318, 5.9490766, 2*0., 0.7, 1., 4.0611856, 5.0952816, 2*0., 0.7, 1.
+    startPointVec                       = -1.0601318, 5.9490766, 2*0., 0.7, 2.3, 4.0611856, 5.0952816, 2*0., 0.7, 3.
    !sampleRefinementCount               = 10
     sampleRefinementMethod              = "BatchMeans"
    !randomStartPointDomainLowerLimitVec = 6*-100.e0         ! repetition pattern rules apply again here. 4 dimensions => 4-element vector of values.

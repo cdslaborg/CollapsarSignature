@@ -1,3 +1,5 @@
+! Program to test the functions getCholeskyFactor and getDeterminant
+
 #include "Constants_mod.f90"
 #include "Matrix_mod.f90"
 
@@ -5,7 +7,7 @@ program test
 
     use iso_fortran_env, only: output_unit
     use Constants_mod, only: IK, RK
-    use Matrix_mod, only: getCholeskyFactor
+    use Matrix_mod, only: getCholeskyFactor, getDeterminant
 
     Implicit None
 
@@ -14,6 +16,7 @@ program test
     real(RK)                    :: matrix(NDIM,NDIM)
     real(RK)                    :: CholeskyDiag(NDIM)
     real(RK)                    :: sqrtDetMatrix
+    real(RK)                    :: dummy
     
     matrix(1,1) = 4_RK
     matrix(1,2) = 12_RK
@@ -28,6 +31,10 @@ program test
     call getCholeskyFactor(nd = NDIM, PosDefMat = matrix, Diagonal = CholeskyDiag)
     sqrtDetMatrix = product(CholeskyDiag)
     
-    write(output_unit,"(*(g0))") "sqrt of det of matrix is: ", sqrtDetMatrix
+    write(output_unit,"(*(g0))") "sqrt of det of matrix via getCholeskyFactor is: ", sqrtDetMatrix
+    
+    sqrtDetMatrix = sqrt(getDeterminant(nd = NDIM, InputMat = matrix))
+    
+    write(output_unit,"(*(g0))") "sqrt of det of matrix via getDeterminant is: ", sqrtDetMatrix
     
 end

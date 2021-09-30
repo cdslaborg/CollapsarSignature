@@ -17,6 +17,7 @@
 
 #include "Constants_mod.f90"
 #include "Matrix_mod.f90"
+#include "Log_mod.f90"
 
 module LogFunc_mod
 
@@ -30,23 +31,23 @@ module LogFunc_mod
     integer(IK) , parameter     :: NDATA = 1966_IK ! Batse_orig data size
     real(RK)    , parameter     :: COEF0 = NDIM * log( 1._RK / SQRT2PI )
 
-    real(RK)                    :: mv_meanVec(NDIM)
-    real(RK)                    :: mv_stdDur
-    real(RK)                    :: mv_stdEpk
-    real(RK)                    :: mv_rho
-    real(RK)                    :: mv_amp
+    real(RK)                    :: mv_meanVec1(NDIM)
+    real(RK)                    :: mv_stdDur1
+    real(RK)                    :: mv_stdEpk1
+    real(RK)                    :: mv_rho1
+    real(RK)                    :: mv_amp1
     real(RK)                    :: mv_meanVec2(NDIM)
     real(RK)                    :: mv_stdDur2
     real(RK)                    :: mv_stdEpk2
     real(RK)                    :: mv_rho2
     real(RK)                    :: mv_amp2
-    real(RK)                    :: mv_CovMatUpperCholeskyLower(NDIM,NDIM)
-    real(RK)                    :: mv_CholeskyDiag(NDIM)
+    real(RK)                    :: mv_CovMatUpperCholeskyLower1(NDIM,NDIM)
+    real(RK)                    :: mv_CholeskyDiag1(NDIM)
     real(RK)                    :: mv_CovMatUpperCholeskyLower2(NDIM,NDIM)
     real(RK)                    :: mv_CholeskyDiag2(NDIM)
-    real(RK)                    :: mv_InvCovMat(NDIM,NDIM)
+    real(RK)                    :: mv_InvCovMat1(NDIM,NDIM)
     real(RK)                    :: mv_InvCovMat2(NDIM,NDIM)
-    
+
     ! data attributes
 
     type :: GRB_type
@@ -56,7 +57,7 @@ module LogFunc_mod
         real(RK) :: LogT50(NDATA)
         real(RK) :: LogT90(NDATA)
         real(RK) :: LogEpk(NDATA)
-    end type GRB_type 
+    end type GRB_type
 
     type(GRB_type) :: GRB
 
@@ -101,60 +102,63 @@ contains
 
         use Constants_mod, only: NEGINF_RK
         use Matrix_mod, only: getCholeskyFactor, getInvMatFromCholFac
+        use Log_mod, only: getLogAddExp_RK
 
         implicit none
 
         integer(IK) , intent(in)    :: npar
         real(RK)    , intent(in)    :: param(npar)
         real(RK)                    :: logFunc
+        real(RK)                    :: logFunc1
+        real(RK)                    :: logFunc2
         integer(IK)                 :: idata, i, j
-        real(RK)                    :: sqrtDetCov
+        real(RK)                    :: sqrtDetCov1
         real(RK)                    :: sqrtDetCov2
-        real(RK)                    :: invSqrtDetCov
+        real(RK)                    :: invSqrtDetCov1
         real(RK)                    :: invSqrtDetCov2
-        real(RK)                    :: NormedPoint(NDIM)
+        real(RK)                    :: NormedPoint1(NDIM)
         real(RK)                    :: NormedPoint2(NDIM)
 
         ! Order of variables in param:
         !
-        !   param(1) = logAvg(x)
-        !   param(2) = logAvg(y)
-        !   param(3) = logStd(x)
-        !   param(4) = logStd(y)
-        !   param(5) = FirsherTrans(self._rho)
-        !   param(6) = amplitude
+        !   param(1) = logAvg1(x)
+        !   param(2) = logAvg1(y)
+        !   param(3) = logStd1(x)
+        !   param(4) = logStd1(y)
+        !   param(5) = FirsherTrans(self._rho1)
+        !   param(6) = logAmp1
         !   param(7) = logAvg2(x)
         !   param(8) = logAvg2(y)
         !   param(9) = logStd2(x)
         !   param(10) = logStd2(y)
         !   param(11) = FirsherTrans(self._rho2)
-        !   param(12) = amplitude2
+        !   param(12) = logAmp2
 
-        mv_meanVec(1) = param(1)
-        mv_meanVec(2) = param(2)
-        mv_stdDur = exp(param(3))
-        mv_stdEpk = exp(param(4))
-        mv_rho = tanh(param(5))
-        mv_amp = param(6)
+        mv_meanVec1(1) = param(1)
+        mv_meanVec1(2) = param(2)
+        mv_stdDur1 = exp(param(3))
+        mv_stdEpk1 = exp(param(4))
+        mv_rho1 = tanh(param(5))
+        mv_amp1 = exp(param(6))
         mv_meanVec2(1) = param(7)
         mv_meanVec2(2) = param(8)
         mv_stdDur2 = exp(param(9))
         mv_stdEpk2 = exp(param(10))
         mv_rho2 = tanh(param(11))
-        mv_amp2 = param(12)
-        
-        mv_CovMatUpperCholeskyLower(1,1) = mv_stdDur**2
-        mv_CovMatUpperCholeskyLower(2,2) = mv_stdEpk**2
-        mv_CovMatUpperCholeskyLower(1,2) = mv_rho * mv_stdDur * mv_stdEpk
-        mv_CovMatUpperCholeskyLower(2,1) = mv_CovMatUpperCholeskyLower(1,2)
+        mv_amp2 = exp(param(12))
+
+        mv_CovMatUpperCholeskyLower1(1,1) = mv_stdDur1**2
+        mv_CovMatUpperCholeskyLower1(2,2) = mv_stdEpk1**2
+        mv_CovMatUpperCholeskyLower1(1,2) = mv_rho1 * mv_stdDur1 * mv_stdEpk1
+        mv_CovMatUpperCholeskyLower1(2,1) = mv_CovMatUpperCholeskyLower1(1,2)
         mv_CovMatUpperCholeskyLower2(1,1) = mv_stdDur2**2
         mv_CovMatUpperCholeskyLower2(2,2) = mv_stdEpk2**2
         mv_CovMatUpperCholeskyLower2(1,2) = mv_rho2 * mv_stdDur2 * mv_stdEpk2
         mv_CovMatUpperCholeskyLower2(2,1) = mv_CovMatUpperCholeskyLower2(1,2)
-        
+
         ! compute the Cholescky factor of mv_CovMatUpperCholeskyLower
-        call getCholeskyFactor(nd = NDIM, PosDefMat = mv_CovMatUpperCholeskyLower, Diagonal = mv_CholeskyDiag)
-        if (mv_CholeskyDiag(1)<0._RK) then
+        call getCholeskyFactor(nd = NDIM, PosDefMat = mv_CovMatUpperCholeskyLower1, Diagonal = mv_CholeskyDiag1)
+        if (mv_CholeskyDiag1(1)<0._RK) then
             logFunc = NEGINF_RK
             return
         end if
@@ -163,20 +167,20 @@ contains
             logFunc = NEGINF_RK
             return
         end if
-        
+
         ! The following is the log of the coefficient used in the definition of the MVN.
 
-        ! coef = self.coef0 + np.log( np.sqrt(np.linalg.det(invCovMat)) )
-        sqrtDetCov = product(mv_CholeskyDiag) ! sqrt of determinant of the covariance matrix
-        if (sqrtDetCov<=0) then
-            write(output_unit,"(*(g0))") "sqrt of covariance determinant is <=0: ", sqrtDetCov
+        sqrtDetCov1 = product(mv_CholeskyDiag1) ! sqrt of determinant of the covariance matrix
+        if (sqrtDetCov1<=0) then
+            write(output_unit,"(*(g0))") "sqrt of covariance determinant is <=0: ", sqrtDetCov1
             write(output_unit,"(*(g0))") "Cholesky mv_DiagonalLogNormModel: "
-            write(output_unit,"(*(g0))") mv_CholeskyDiag
+            write(output_unit,"(*(g0))") mv_CholeskyDiag1
             write(output_unit,"(*(g0))") "mv_CholeskyLowerLogNormModel/CovarianceMatrix: "
-            write(output_unit,"(*(g20.13))") ((mv_CovMatUpperCholeskyLower(i,j),j=1,NDIM),new_line("A"),i=1,NDIM)
+            write(output_unit,"(*(g20.13))") ((mv_CovMatUpperCholeskyLower1(i,j),j=1,NDIM),new_line("A"),i=1,NDIM)
             stop
         end if
-        invSqrtDetCov = 1._RK / sqrtDetCov
+        invSqrtDetCov1 = 1._RK / sqrtDetCov1
+        
         sqrtDetCov2 = product(mv_CholeskyDiag2) ! sqrt of determinant of the covariance matrix
         if (sqrtDetCov2<=0) then
             write(output_unit,"(*(g0))") "sqrt of covariance determinant is <=0: ", sqrtDetCov2
@@ -187,19 +191,26 @@ contains
             stop
         end if
         invSqrtDetCov2 = 1._RK / sqrtDetCov2
-        
+
         ! get the full Inverse covariance matricies
-        mv_InvCovMat = getInvMatFromCholFac( nd = NDIM, CholeskyLower = mv_CovMatUpperCholeskyLower, Diagonal = mv_CholeskyDiag )
+        mv_InvCovMat1 = getInvMatFromCholFac( nd = NDIM, CholeskyLower = mv_CovMatUpperCholeskyLower1, Diagonal = mv_CholeskyDiag1 )
         mv_InvCovMat2 = getInvMatFromCholFac( nd = NDIM, CholeskyLower = mv_CovMatUpperCholeskyLower2, Diagonal = mv_CholeskyDiag2 )
 
         logFunc = COEF0 * NDATA
         do idata = 1, NDATA
-            NormedPoint(1) = GRB%LogT90(idata) - mv_meanVec(1)
-            NormedPoint(2) = GRB%LogEpk(idata) - mv_meanVec(2)
+            NormedPoint1(1) = GRB%LogT90(idata) - mv_meanVec1(1)
+            NormedPoint1(2) = GRB%LogEpk(idata) - mv_meanVec1(2)
             NormedPoint2(1) = GRB%LogT90(idata) - mv_meanVec2(1)
             NormedPoint2(2) = GRB%LogEpk(idata) - mv_meanVec2(2)
-            logFunc = logFunc + log(mv_amp * invSqrtDetCov * exp(-0.5_RK * dot_product(NormedPoint,matmul(mv_invCovMat,NormedPoint))) &
-                    + mv_amp2 * invSqrtDetCov2 * exp(-0.5_RK * dot_product(NormedPoint2,matmul(mv_invCovMat2,NormedPoint2))) )
+            logFunc1 = log(mv_amp1) - log(sqrtDetCov1) - 0.5_RK * dot_product(NormedPoint1,matmul(mv_invCovMat1,NormedPoint1))
+            logFunc2 = log(mv_amp2) - log(sqrtDetCov2) - 0.5_RK * dot_product(NormedPoint2,matmul(mv_invCovMat2,NormedPoint2))
+            if (logFunc1 >= logFunc2) then
+                logFunc = logFunc + getLogAddExp_RK(logValueLarger = logFunc1, logValueSmaller = logFunc2)
+            else
+                logFunc = logFunc + getLogAddExp_RK(logValueLarger = logFunc2, logValueSmaller = logFunc1)
+            endif
+            !logFunc = logFunc + log(mv_amp1 * invSqrtDetCov1 * exp(-0.5_RK * dot_product(NormedPoint1,matmul(mv_invCovMat1,NormedPoint1))) &
+            !                      + mv_amp2 * invSqrtDetCov2 * exp(-0.5_RK * dot_product(NormedPoint2,matmul(mv_invCovMat2,NormedPoint2))) )
         end do
 
     end function getLogFunc
