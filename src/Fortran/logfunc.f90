@@ -27,7 +27,7 @@ module LogFunc_mod
     implicit none
 
     integer(IK) , parameter     :: NDIM = 2_IK ! number of observational attributes: Dur, Epk
-    integer(IK) , parameter     :: NPAR = 12_IK ! number of parameters of the model
+    integer(IK) , parameter     :: NPAR = 11_IK ! number of parameters of the model
     integer(IK) , parameter     :: NDATA = 1966_IK ! Batse_orig data size
     real(RK)    , parameter     :: COEF0 = NDIM * log( 1._RK / SQRT2PI )
 
@@ -114,8 +114,8 @@ contains
         integer(IK)                 :: idata, i, j
         real(RK)                    :: sqrtDetCov1
         real(RK)                    :: sqrtDetCov2
-        real(RK)                    :: invSqrtDetCov1
-        real(RK)                    :: invSqrtDetCov2
+       !real(RK)                    :: invSqrtDetCov1
+       !real(RK)                    :: invSqrtDetCov2
         real(RK)                    :: NormedPoint1(NDIM)
         real(RK)                    :: NormedPoint2(NDIM)
 
@@ -126,26 +126,25 @@ contains
         !   param(3) = logStd1(x)
         !   param(4) = logStd1(y)
         !   param(5) = FirsherTrans(self._rho1)
-        !   param(6) = logAmp1
+        !   param(6) = Amp1
         !   param(7) = logAvg2(x)
         !   param(8) = logAvg2(y)
         !   param(9) = logStd2(x)
         !   param(10) = logStd2(y)
         !   param(11) = FirsherTrans(self._rho2)
-        !   param(12) = logAmp2
 
         mv_meanVec1(1) = param(1)
         mv_meanVec1(2) = param(2)
         mv_stdDur1 = exp(param(3))
         mv_stdEpk1 = exp(param(4))
         mv_rho1 = tanh(param(5))
-        mv_amp1 = exp(param(6))
+        mv_amp1 = 0.5_RK + 0.5_RK * tanh(param(6))
         mv_meanVec2(1) = param(7)
         mv_meanVec2(2) = param(8)
         mv_stdDur2 = exp(param(9))
         mv_stdEpk2 = exp(param(10))
         mv_rho2 = tanh(param(11))
-        mv_amp2 = exp(param(12))
+        mv_amp2 = 1._RK - mv_amp1
 
         mv_CovMatUpperCholeskyLower1(1,1) = mv_stdDur1**2
         mv_CovMatUpperCholeskyLower1(2,2) = mv_stdEpk1**2
@@ -179,7 +178,7 @@ contains
             write(output_unit,"(*(g20.13))") ((mv_CovMatUpperCholeskyLower1(i,j),j=1,NDIM),new_line("A"),i=1,NDIM)
             stop
         end if
-        invSqrtDetCov1 = 1._RK / sqrtDetCov1
+        !invSqrtDetCov1 = 1._RK / sqrtDetCov1
         
         sqrtDetCov2 = product(mv_CholeskyDiag2) ! sqrt of determinant of the covariance matrix
         if (sqrtDetCov2<=0) then
@@ -190,7 +189,7 @@ contains
             write(output_unit,"(*(g20.13))") ((mv_CovMatUpperCholeskyLower2(i,j),j=1,NDIM),new_line("A"),i=1,NDIM)
             stop
         end if
-        invSqrtDetCov2 = 1._RK / sqrtDetCov2
+        !invSqrtDetCov2 = 1._RK / sqrtDetCov2
 
         ! get the full Inverse covariance matricies
         mv_InvCovMat1 = getInvMatFromCholFac( nd = NDIM, CholeskyLower = mv_CovMatUpperCholeskyLower1, Diagonal = mv_CholeskyDiag1 )
