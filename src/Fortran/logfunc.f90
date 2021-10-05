@@ -137,13 +137,13 @@ contains
         MeanVecSGRB(2) = param(2)       ! SGRB: mean(log(Epk))
         stdDurSGRB = exp(param(3))      ! SGRB: log(std(log(T90)))
         stdEpkSGRB = exp(param(4))      ! SGRB: log(std(log(Epk)))
-        rhoDurEpkSGRB = tanh(param(5))  ! SGRB: FisherTrans(rho( log(T90) - log(Epk) ))
+        rhoDurEpkSGRB = tanh(param(5))  ! SGRB: FisherTrans(rho( log(T90), log(Epk) ))
                                         
         MeanVecLGRB(1) = param(6)       ! LGRB: mean(log(T90))
         MeanVecLGRB(2) = param(7)       ! LGRB: mean(log(Epk))
         stdDurLGRB = exp(param(8))      ! LGRB: log(std(log(T90)))
         stdEpkLGRB = exp(param(9))      ! LGRB: log(std(log(Epk)))
-        rhoDurEpkLGRB = tanh(param(10)) ! LGRB: FisherTrans(rho( log(T90) - log(Epk) ))
+        rhoDurEpkLGRB = tanh(param(10)) ! LGRB: FisherTrans(rho( log(T90), log(Epk) ))
 
         ! Here we assume the amplitude of SGRBS MVN distribution is 1.
         ! Therefore,

@@ -86,13 +86,13 @@
                                         , 5.9490766     ! SGRB: mean(log(Epk))
                                         , 0.            ! SGRB: log(std(log(T90)))
                                         , 0.            ! SGRB: log(std(log(Epk)))
-                                        , 0.            ! SGRB: FisherTrans(rho( log(T90) - log(Epk) ))
+                                        , 0.            ! SGRB: FisherTrans(rho( log(T90), log(Epk) ))
                                         !
                                         , 3.            ! LGRB: mean(log(T90))
                                         , 5.            ! LGRB: mean(log(Epk))
                                         , 0.            ! LGRB: log(std(log(T90)))
                                         , 0.            ! LGRB: log(std(log(Epk)))
-                                        , 0.            ! LGRB: FisherTrans(rho( log(T90) - log(Epk) ))
+                                        , 0.            ! LGRB: FisherTrans(rho( log(T90), log(Epk) ))
                                         !
                                         , -0.42         ! atanh( amplitude(SGRB) - 0.5 ) * 2 )
                                        !, 0.            ! log( amplitude(LGRB) / amplitude(SGRB) )
@@ -101,13 +101,13 @@
                                         , +5.5221791    ! SGRB: mean(log(Epk))
                                         , -1000.        ! SGRB: log(std(log(T90)))
                                         , -1000.        ! SGRB: log(std(log(Epk)))
-                                        , -1000.        ! SGRB: FisherTrans(rho( log(T90) - log(Epk) ))
+                                        , -1000.        ! SGRB: FisherTrans(rho( log(T90), log(Epk) ))
                                         !
                                         , +1.60943791   ! LGRB: mean(log(T90))
                                         , -1000.        ! LGRB: mean(log(Epk))
                                         , -1000.        ! LGRB: log(std(log(T90)))
                                         , -1000.        ! LGRB: log(std(log(Epk)))
-                                        , -1000.        ! LGRB: FisherTrans(rho( log(T90) - log(Epk) ))
+                                        , -1000.        ! LGRB: FisherTrans(rho( log(T90), log(Epk) ))
                                         !
                                         , -200000.      ! atanh( amplitude(SGRB) - 0.5 ) * 2 )
                                        !, -2.           ! log( amplitude(LGRB) / amplitude(SGRB) )
@@ -116,13 +116,13 @@
                                         , +1000.        ! SGRB: mean(log(Epk))
                                         , +1000.        ! SGRB: log(std(log(T90)))
                                         , +1000.        ! SGRB: log(std(log(Epk)))
-                                        , +1000.        ! SGRB: FisherTrans(rho( log(T90) - log(Epk) ))
+                                        , +1000.        ! SGRB: FisherTrans(rho( log(T90), log(Epk) ))
                                         !
                                         , +1000.        ! LGRB: mean(log(T90))
                                         , +5.5221791    ! LGRB: mean(log(Epk))
                                         , +1000.        ! LGRB: log(std(log(T90)))
                                         , +1000.        ! LGRB: log(std(log(Epk)))
-                                        , +1000.        ! LGRB: FisherTrans(rho( log(T90) - log(Epk) ))
+                                        , +1000.        ! LGRB: FisherTrans(rho( log(T90), log(Epk) ))
                                         !
                                         , +200000.      ! atanh( amplitude(SGRB) - 0.5 ) * 2 )
                                        !, +2.           ! log( amplitude(LGRB) / amplitude(SGRB) )
