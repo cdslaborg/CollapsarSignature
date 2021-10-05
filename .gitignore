@@ -178,3 +178,4 @@ _deps
 
 **/docs/*
 **/doc/*
+**/*.cache

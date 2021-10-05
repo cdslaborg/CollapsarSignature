@@ -46,7 +46,7 @@
                                                             ! the beginning of the line.
     outputRealPrecision                 = 17
    !outputDelimiter                     = ","
-    outputFileName                      = "../../out/Fortran/T90Epk/"   ! the last forward-slash character indicates that this 
+    outputFileName                      = "../../out/Fortran/DurEpk/"   ! the last forward-slash character indicates that this 
                                                             ! is the folder where the output files will have to stored.
                                                             ! However, since no output filename prefix has been specified,
                                                             ! the output filenames will be assigned a randomly-generated prefix.
@@ -54,20 +54,6 @@
     randomSeed                          = 2136275,
     chainFileFormat                     = "compact"
 
-    variableNameList = "AverageLogT90_s"
-                     , "AverageLogEpk_s"
-                     , "LogStandardDeviationT90_s" 
-                     , "LogStandardDeviationEpk_s"
-                     , "FisherTrans(rho_s)"
-                     , "FisherTrans(2*amp_s - 1)"
-                     , "AverageLogT90_l"
-                     , "AverageLogEpk_l"
-                     , "LogStandardDeviationT90_l"
-                     , "LogStandardDeviationEpk_l"
-                     , "FirsherTrans(rho_l)"
-
-    domainLowerLimitVec                 = -1000., 5.5221791, 3*-1000., -1.e100, 1.60943791, 4*-1000.
-    domainUpperLimitVec                 = 1.60943791, 4*1000., 1.e100, 1000., 5.5221791, 3*1000.
     parallelizationModel                = "single chain"    ! "singleChain" would also work. Similarly, "multichain", "multi chain", or "multiChain".
     targetAcceptanceRate                = 0.1, 0.3
     progressReportPeriod                = 1000
@@ -80,8 +66,69 @@
 
     ! MCMC specifications
 
-    chainSize                           = 100000
-    startPointVec                       = -1.0601318, 5.9490766, 2*0., 0.7, -0.38, 4.0611856, 5.0952816, 2*0., 0.7
+    chainSize                           = 30000
+
+    variableNameList                    = "MeanLogDur_SGRB"
+                                        , "MeanLogEpk_SGRB"
+                                        , "LogStdLogDur_SGRB" 
+                                        , "LogStdLogEpk_SGRB"
+                                        , "rhoDurEpkFisherTrans_SGRB"
+                                        , "MeanLogDur_LGRB"
+                                        , "MeanLogEpk_LGRB"
+                                        , "LogStdLogDur_LGRB" 
+                                        , "LogStdLogEpk_LGRB"
+                                        , "rhoDurEpkFisherTrans_LGRB"
+                                        , "LogAmplitudeLGRB2SGRB"
+
+   !startPointVec                       = -1.0601318, 5.9490766, 2*0., 0.7, -0.38, 4.0611856, 5.0952816, 2*0., 0.7
+
+    startPointVec                       = -1.0601318    ! SGRB: mean(log(T90))
+                                        , 5.9490766     ! SGRB: mean(log(Epk))
+                                        , 0.            ! SGRB: log(std(log(T90)))
+                                        , 0.            ! SGRB: log(std(log(Epk)))
+                                        , 0.            ! SGRB: FisherTrans(rho( log(T90) - log(Epk) ))
+                                        !
+                                        , 3.            ! LGRB: mean(log(T90))
+                                        , 5.            ! LGRB: mean(log(Epk))
+                                        , 0.            ! LGRB: log(std(log(T90)))
+                                        , 0.            ! LGRB: log(std(log(Epk)))
+                                        , 0.            ! LGRB: FisherTrans(rho( log(T90) - log(Epk) ))
+                                        !
+                                        , -0.42         ! atanh( amplitude(SGRB) - 0.5 ) * 2 )
+                                       !, 0.            ! log( amplitude(LGRB) / amplitude(SGRB) )
+                                        
+    domainLowerLimitVec                 = -100.         ! SGRB: mean(log(T90))
+                                        , +5.5221791    ! SGRB: mean(log(Epk))
+                                        , -1000.        ! SGRB: log(std(log(T90)))
+                                        , -1000.        ! SGRB: log(std(log(Epk)))
+                                        , -1000.        ! SGRB: FisherTrans(rho( log(T90) - log(Epk) ))
+                                        !
+                                        , +1.60943791   ! LGRB: mean(log(T90))
+                                        , -1000.        ! LGRB: mean(log(Epk))
+                                        , -1000.        ! LGRB: log(std(log(T90)))
+                                        , -1000.        ! LGRB: log(std(log(Epk)))
+                                        , -1000.        ! LGRB: FisherTrans(rho( log(T90) - log(Epk) ))
+                                        !
+                                        , -200000.      ! atanh( amplitude(SGRB) - 0.5 ) * 2 )
+                                       !, -2.           ! log( amplitude(LGRB) / amplitude(SGRB) )
+                                        
+    domainUpperLimitVec                 = +1.60943791   ! SGRB: mean(log(T90))
+                                        , +1000.        ! SGRB: mean(log(Epk))
+                                        , +1000.        ! SGRB: log(std(log(T90)))
+                                        , +1000.        ! SGRB: log(std(log(Epk)))
+                                        , +1000.        ! SGRB: FisherTrans(rho( log(T90) - log(Epk) ))
+                                        !
+                                        , +1000.        ! LGRB: mean(log(T90))
+                                        , +5.5221791    ! LGRB: mean(log(Epk))
+                                        , +1000.        ! LGRB: log(std(log(T90)))
+                                        , +1000.        ! LGRB: log(std(log(Epk)))
+                                        , +1000.        ! LGRB: FisherTrans(rho( log(T90) - log(Epk) ))
+                                        !
+                                        , +200000.      ! atanh( amplitude(SGRB) - 0.5 ) * 2 )
+                                       !, +2.           ! log( amplitude(LGRB) / amplitude(SGRB) )
+
+   !domainUpperLimitVec                 = 1.60943791, 4*1000., 1.e100, 1000., 5.5221791, 3*1000.
+                                        
    !sampleRefinementCount               = 10
     sampleRefinementMethod              = "BatchMeans"
    !randomStartPointDomainLowerLimitVec = 6*-100.e0         ! repetition pattern rules apply again here. 4 dimensions => 4-element vector of values.
@@ -92,7 +139,7 @@
 
     scaleFactor                         = "2*0.5*Gelman"    ! The asterisk here means multiplication since it is enclosed within quotation marks.
     proposalModel                       = "normal"          ! or "uniform" as you wish.
-    adaptiveUpdateCount                 = 0!10000000
+    adaptiveUpdateCount                 = 10000000
     adaptiveUpdatePeriod                = 35
     greedyAdaptationCount               = 0
    !delayedRejectionCount               = 5

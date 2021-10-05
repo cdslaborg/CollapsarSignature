@@ -1,9 +1,13 @@
-module Log_mod
+module Math_mod
 
     implicit none
-    
-    character(*), parameter :: MODULE_NAME = "@Log_mod"
-    
+
+    character(*), parameter :: MODULE_NAME = "@Math_mod"
+
+    interface getLogAddExp
+        module procedure :: getLogAddExp_RK, getLogSumExp_RK
+    end interface getLogAddExp
+
 contains
 
     PURE function getLogAddExp_RK(logValueLarger, logValueSmaller) result(logSumExp)
@@ -23,7 +27,7 @@ contains
         logSumExp = logValueLarger
         if (logRatio > LOGTINY_RK) logSumExp = logSumExp + log(1._RK + exp(logRatio))
     end function getLogAddExp_RK
-    
+
     pure function getLogSumExp_RK(LogValue, maxLogValue) result(logSumExp)
 #if INTEL_COMPILER_ENABLED && DLL_ENABLED && (WINDOWS_ENABLED || DARWIN_ENABLED)
         !DEC$ ATTRIBUTES DLLEXPORT :: getLogSumExp_RK
@@ -43,5 +47,5 @@ contains
         end do
         logSumExp = maxLogValue + log(logSumExp)
     end function getLogSumExp_RK
-    
-end module log_mod
+
+end module Math_mod
