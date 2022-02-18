@@ -19,16 +19,16 @@ legendAlpha = 0.7;
 xvar = 'T90'; % choose x-axis variable. Must be 'T90' or 'T50'.
 yvar = 'HR32'; % choose y-axis variable. Must be 'HR32', 'HR4321', or 'Epk'.
 threshold = 5; % value of (T90 / T50) to cut the dataset, discarding values below this threshold as not likely LGRBs. Default is 5 seconds.
-facInc = 0; % factor by which to increase datset size for better fitting. Default is 0. Must be an integer.
-nsample = 2000; % number of samples drawn from PDF
+facInc = 0; % factor by which to increase datset size for better fitting. Default is 0 and must be an integer. Deprecated.
+nsample = 2000; % number of samples drawn from PDF. Chosen to be comparable to BATSE dataset size. 
 nbins = 50; % number of bins in which to bin xvar data
 mergeBins = true; % merge adjacent bins with <5 events
-saveNewImages = true; % export figure on or off. Must have export_fig installed.
+saveNewImages = false; % export figure on or off. Must have export_fig installed.
 
 if ~any(strcmpi(xvar, ["T90", "T50"])); error("'xvar' is not an allowable value"); end
 if ~any(strcmpi(yvar, ["HR32", "HR4321", "Epk"])); error("'yvar' is not an allowable value"); end
 
-% BATSE T90 & Epk Data
+% BATSE Data
 batse = importdata("..\in\Batse_orig.xlsx");
 icol.f1 = 2; % column index of Fluence Channel 1
 icol.f2 = 4;
@@ -108,22 +108,15 @@ if facInc ~= 0
 end
 
 % Fit Double MVN - Must have Statistics and Machine Learning Toolbox installed
-if strcmpi(xvar, 'T90') && strcmpi(yvar, 'HR32')
-    load("../out/modelParamHR32T90.mat");
-    S.mu = GMModel.mu;
-    S.Sigma = GMModel.Sigma;
-    S.ComponentProportion = GMModel.ComponentProportion;
-    clear('GMModel');
-    options = statset('MaxIter',10000); ... 'Display','final',
-    GMModel = fitgmdist(data.batse.all.logVec, 2, 'Options', options, 'Replicates', 100); ...'Start', S);
-else
-    GMModel = fitgmdist(data.batse.all.logVec, 2); % specify two-component MVN
-end
+options = statset('MaxIter', 1000); % Max iterations allowed in EM algorithm
+GMModel = fitgmdist(data.batse.all.logVec, 2, 'Options', options, 'Replicates', 100); % Specify two-component MVN where EM algorithm is repeated 100 times with 
+                                                                                      % different IVs. GMModel is then the fit with the largest loglikelihood.
 gmPDF = @(x, y) arrayfun(@(x0, y0) pdf(GMModel, [x0 y0]), log(x), log(y));
 
 % Sample the PDF
 dummy1 = exp(mvnrnd(GMModel.mu(1,:), GMModel.Sigma(:,:,1), round(GMModel.ComponentProportion(1)*nsample)));
 dummy2 = exp(mvnrnd(GMModel.mu(2,:), GMModel.Sigma(:,:,2), round(GMModel.ComponentProportion(2)*nsample)));
+% Determine which dummy distribution is the SGRBs/LGRBs
 if mean(dummy1(:, 1)) < mean(dummy2(:, 1))
     data.synSam.all.sgrbVec = dummy1;
     data.synSam.all.lgrbVec = dummy2;
@@ -176,6 +169,7 @@ data.batse.cutY.xvar.trim.dNdT = data.batse.cutY.xvar.trim.countsVec ./ data.bat
 data.synSam.all.xvar.trim.dNdT = data.synSam.all.xvar.trim.countsVec ./ data.synSam.all.xvar.trim.binWidths;
 data.synSam.cutY.xvar.trim.dNdT = data.synSam.cutY.xvar.trim.countsVec ./ data.synSam.cutY.xvar.trim.binWidths;
 
+% Optional coloring for Figure 1 if dataset size was increased
 if facInc > 0
     colorVec = {'red', 'blue', 'green'};
 else
@@ -234,8 +228,8 @@ hold off;
 % Figure 3: BATSE dN/DT from (HR32 / HR4321 / Epk) cut
 fig3 = figure("color", figureColor); hold on; box on;
     if mergeBins
-        [nbinsNew1, binEdges1, dNdT1] = binMergeStairPlot(data.batse.all.xvar.trim.countsVec, data.batse.all.xvar.trim.binEdges, defaultColor, lineWidth);
-        [nbinsNew2, binEdges2, dNdT2] = binMergeStairPlot(data.batse.cutY.xvar.trim.countsVec, data.batse.cutY.xvar.trim.binEdges, secondaryColor, lineWidth);
+        [~, binEdges1, dNdT1] = binMergeStairPlot(data.batse.all.xvar.trim.countsVec, data.batse.all.xvar.trim.binEdges, defaultColor, lineWidth);
+        [~, binEdges2, dNdT2] = binMergeStairPlot(data.batse.cutY.xvar.trim.countsVec, data.batse.cutY.xvar.trim.binEdges, secondaryColor, lineWidth);
         [ax.xlower, ax.xupper, ax.xlowTick, ax.xupTick, ax.xspan] = plotLimits([binEdges1, binEdges2], 'log');
         [ax.ylower, ax.yupper, ax.ylowTick, ax.yupTick, ax.yspan] = plotLimits([dNdT1, dNdT2], 'log');
         textpos.x = exp(log(ax.xupper) - (log(ax.xupper) - log(ax.xlower))*0.03);
@@ -313,8 +307,8 @@ hold off;
 % Figure 6: Synthetic dN/DT from (HR32 / HR4321 / Epk) cut
 fig6 = figure("color", figureColor); hold on; box on;
     if mergeBins
-        [nbinsNew1, binEdges1, dNdT1] = binMergeStairPlot(data.synSam.all.xvar.trim.countsVec, data.synSam.all.xvar.trim.binEdges, defaultColor, lineWidth);
-        [nbinsNew2, binEdges2, dNdT2] = binMergeStairPlot(data.synSam.cutY.xvar.trim.countsVec, data.synSam.cutY.xvar.trim.binEdges, secondaryColor, lineWidth);
+        [~, binEdges1, dNdT1] = binMergeStairPlot(data.synSam.all.xvar.trim.countsVec, data.synSam.all.xvar.trim.binEdges, defaultColor, lineWidth);
+        [~, binEdges2, dNdT2] = binMergeStairPlot(data.synSam.cutY.xvar.trim.countsVec, data.synSam.cutY.xvar.trim.binEdges, secondaryColor, lineWidth);
         [ax.xlower, ax.xupper, ax.xlowTick, ax.xupTick, ax.xspan] = plotLimits([binEdges1, binEdges2], 'log');
         [ax.ylower, ax.yupper, ax.ylowTick, ax.yupTick, ax.yspan] = plotLimits([dNdT1, dNdT2], 'log');
         textpos.x = exp(log(ax.xupper) - (log(ax.xupper) - log(ax.xlower))*0.03);
